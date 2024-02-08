@@ -35,6 +35,11 @@ cameraHelper2.visible = true;
 
 scene = new THREE.Scene();
 scene.add( cameraHelper2 );
+var previousMarker = null;//点击标记
+var axesHelper = new THREE.AxesHelper(500); // 这里的 5 是轴的长度
+axesHelper.visible=true
+// 将 AxesHelper 添加到场景中
+scene.add(axesHelper);
 // cameraHelper.visible = true;
 // scene.add( cameraHelper );
 // 光源
@@ -74,6 +79,10 @@ function init() {
     // directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
 
 
+    document.getElementById('lightSlider').addEventListener('input', function(event) {
+        const angle = event.target.value;
+        updateLightAngle(angle);
+    });
     document.getElementById('lightSliderx').addEventListener('input', function(event) {
         const angle = event.target.value;
         updateLightAnglex(angle);
@@ -131,13 +140,13 @@ function init() {
         x_axis=center.x
         y_axis=center.y
         z_axis=center.z
-        directionalLight.position.x=center.x+1500
+        directionalLight.position.x=center.x
         directionalLight.position.y=center.y+1500
-        directionalLight.position.z=center.z+1500
+        directionalLight.position.z=center.z
         directionalLight.target.position.x=center.x
         directionalLight.target.position.y=center.y
         directionalLight.target.position.z=center.z
-
+        axesHelper.position.set(x_axis,y_axis,z_axis)
 
         console.log(directionalLight.position)
         // 计算尺寸（宽度、高度、深度）
@@ -218,10 +227,66 @@ function createTimeSeries(list) {
 
     return timeSeries;
 }
+function addMarkerAtIntersect(intersect) {
+    // 如果之前有标记，先从场景中移除
+    if (previousMarker) {
+        scene.remove(previousMarker);
+        previousMarker.geometry.dispose(); // 可选：释放几何体资源
+        previousMarker.material.dispose(); // 可选：释放材料资源
+    }
+
+    // 创建一个小球体作为交点的标记，使用蓝色材质
+    var sphereGeometry = new THREE.SphereGeometry(1, 32, 32); // 半径为0.1的球体
+    var sphereMaterial = new THREE.MeshBasicMaterial({color: 0x0000ff}); // 蓝色
+    var sphereMarker = new THREE.Mesh(sphereGeometry, sphereMaterial);
+
+    // 将球体标记位置设置为交点位置
+    sphereMarker.position.copy(intersect);
+
+    // 将球体标记添加到场景中，并保存引用
+    scene.add(sphereMarker);
+    previousMarker = sphereMarker;
+}
+function light_interesct(point){
+    // 创建一个从点到光源的方向向量
+    const direction = new THREE.Vector3().subVectors(directionalLight.position, point).normalize();
+
+    // 创建一个射线投射器，并设置其射线的起点和方向
+    const raycaster = new THREE.Raycaster(point, direction);
+    var arrowHelper = new THREE.ArrowHelper(direction, point, 12, 0x0000ff);
+    scene.add(arrowHelper);
+    // 调用raycaster的intersectObjects方法检测与场景中所有物体的交点
+    const intersections = raycaster.intersectObjects(Model_.children, true);
+    console.log(Model_.children)
+    console.log(intersections,"intersections,")
+    // 如果有交点，并且最近的交点距离小于点到光源的距离，则路径上有遮挡
+
+    if (intersections.length > 0) {
+        // 假设 intersections 是射线投射的结果
+        intersections.forEach((intersection) => {
+            var sphereGeometry = new THREE.SphereGeometry(6, 32, 32); // 小球体的尺寸和分段
+            var sphereMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // 红色
+            var sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+
+            sphere.position.copy(intersection.point); // 设置小球体的位置为交点的位置
+            scene.add(sphere);
+        });
+
+        const distanceToPoint = point.distanceTo(directionalLight.position);
+        console.log(distanceToPoint,"distance")
+        if (intersections[0].distance < distanceToPoint) {
+            return true; // 路径上有遮挡
+
+        }
+    }
+
+    return false; // 路径上没有遮挡
+
+}
 
 function onClick(event) {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1.05;
 
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObject(Model_, true);
@@ -233,74 +298,75 @@ function onClick(event) {
         }
         let light_list=[]
         clickCoordinates.copy(intersects[0].point);
-
-        let reflectance
-
+        addMarkerAtIntersect(intersects[0].point)
         console.log('点击坐标:', clickCoordinates);
+        let intersect_judge=light_interesct(intersects[0].point)
+        console.log(intersect_judge)
         // console.log('光线反射值:', reflectance);
-        const step = 5; // 或根据需要调整
-        let currentValue=0
 
-// 设置间隔时间（毫秒）
-        const intervalTime = 1; // 每100毫秒移动一次
-
-// 创建一个定时器，逐步增加滑块的值
-        const interval = setInterval(() => {
-            // 增加当前值
-            currentValue += step;
-
-            // 检查是否达到最大值
-            if (currentValue > parseInt(360)) {
-                // console.log(`Reached max value: ${slider.max}`);
-                clearInterval(interval); // 停止定时器
-                console.log(light_list)
-
-
-                // 创建新的容器
-                var container = document.createElement('div');
-                container.id = 'canvasContainer';
-                container.style.width = '300px';
-                container.style.height = '300px';
-                container.style.position = 'absolute';
-                container.style.left = event.pageX + 'px';
-                container.style.top = event.pageY + 'px';
-                container.style.zIndex='999'
-                container.style.backgroundColor = '#FFFFFF'; //
-                // 创建新的Canvas元素
-                var canvas = document.createElement('canvas');
-                canvas.id = 'dynamicCanvas';
-
-                container.appendChild(canvas);
-                document.body.appendChild(container);
-
-                var ctx = canvas.getContext('2d');
-                // 使用Chart.js绘制折线图
-                var myChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: createTimeSeries(light_list),
-                        datasets: [{
-                            label: 'Light strength',
-                            data: light_list,
-                            fill: false,
-                            borderColor: 'rgb(75, 192, 192)',
-                            tension: 0.1
-                        }]
-                    },
-                    options: {
-                        maintainAspectRatio: false, // 确保图表大小符合容器大小
-                        responsive: true // 让图表响应容器大小的变化
-                    }
-                });
-
-            } else {
-                updateLightAngle(currentValue)
-                reflectance = calculateReflectance(intersects[0]);
-                light_list.push(reflectance)
-                // slider.value = currentValue; // 更新滑块的值
-                // console.log(`Current slider value: ${currentValue}`); // 在控制台输出当前值
-            }
-        }, intervalTime);
+//         const step = 5; // 或根据需要调整
+//         let currentValue=0
+//
+// // 设置间隔时间（毫秒）
+//         const intervalTime = 1; // 每100毫秒移动一次
+//
+// // 创建一个定时器，逐步增加滑块的值
+//         const interval = setInterval(() => {
+//             // 增加当前值
+//             currentValue += step;
+//
+//             // 检查是否达到最大值
+//             if (currentValue > parseInt(360)) {
+//                 // console.log(`Reached max value: ${slider.max}`);
+//                 clearInterval(interval); // 停止定时器
+//                 console.log(light_list)
+//
+//
+//                 // 创建新的容器
+//                 var container = document.createElement('div');
+//                 container.id = 'canvasContainer';
+//                 container.style.width = '300px';
+//                 container.style.height = '300px';
+//                 container.style.position = 'absolute';
+//                 container.style.left = event.pageX + 'px';
+//                 container.style.top = event.pageY + 'px';
+//                 container.style.zIndex='999'
+//                 container.style.backgroundColor = '#FFFFFF'; //
+//                 // 创建新的Canvas元素
+//                 var canvas = document.createElement('canvas');
+//                 canvas.id = 'dynamicCanvas';
+//
+//                 container.appendChild(canvas);
+//                 document.body.appendChild(container);
+//
+//                 var ctx = canvas.getContext('2d');
+//                 // 使用Chart.js绘制折线图
+//                 var myChart = new Chart(ctx, {
+//                     type: 'line',
+//                     data: {
+//                         labels: createTimeSeries(light_list),
+//                         datasets: [{
+//                             label: 'Light strength',
+//                             data: light_list,
+//                             fill: false,
+//                             borderColor: 'rgb(75, 192, 192)',
+//                             tension: 0.1
+//                         }]
+//                     },
+//                     options: {
+//                         maintainAspectRatio: false, // 确保图表大小符合容器大小
+//                         responsive: true // 让图表响应容器大小的变化
+//                     }
+//                 });
+//
+//             } else {
+//                 updateLightAngle(currentValue)
+//                 reflectance = calculateReflectance(intersects[0]);
+//                 light_list.push(reflectance)
+//                 // slider.value = currentValue; // 更新滑块的值
+//                 // console.log(`Current slider value: ${currentValue}`); // 在控制台输出当前值
+//             }
+//         }, intervalTime);
 
 
     }}
@@ -320,74 +386,60 @@ function calculateReflectance(intersection) {
 
     return reflectance;
 }
-const material = new THREE.MeshPhongMaterial({ color: 0xff0000, emissive: 0x330000 });
 
-function getReflectionValue(intersection) {
-    const materialColor = material.color;
-    const emissiveColor = material.emissive;
-    const lightColor = pointLight.color;
-    const lightPosition = pointLight.position;
-
-    // 计算光线反射值
-    const ambient = materialColor.clone().multiply(lightColor);
-    const diffuse = materialColor.clone().multiply(lightColor).multiplyScalar(
-        Math.max(0, intersection.face.normal.dot(lightPosition.clone().normalize()))
-    );
-    const emissive = emissiveColor.clone().multiply(lightColor);
-
-    const reflectionValue = {
-        ambient: ambient,
-        diffuse: diffuse,
-        emissive: emissive
-    };
-
-    // 返回反射值
-    return reflectionValue;
-}
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
     helper.update();
     render();
 }
-function updateLightAngle(angle) {
-    directionalLight.position.x=x_axis+angle*100
-    directionalLight.position.y=y_axis+angle*100
-    directionalLight.position.z=z_axis+angle*100
-    // const radians = angle * (Math.PI / 180);
-    // directionalLight.position.x = Math.cos(radians);
-    // directionalLight.position.z = Math.sin(radians);
+
+
+function updateLightAngle(angle_num) {
+    // degrees=(angle_num* Math.PI / 180)
+    const targetPosition=directionalLight.target.position
+    const radians = angle_num * (Math.PI / 180);
+
+    // 提取目标位置
+    const centerX = targetPosition.x;
+    const centerY = targetPosition.y;
+
+    // 计算当前光源位置与目标位置的相对位置
+    // 这里假设光源与目标的初始距离（radius）是固定的，可以根据实际情况调整
+    const distance = Math.sqrt(Math.pow(directionalLight.position.x - centerX, 2) + Math.pow(directionalLight.position.y - centerY, 2));
+
+    // 计算新的光源位置
+    directionalLight.position.x = centerX + distance * Math.cos(radians);
+    directionalLight.position.y = centerY + distance * Math.sin(radians);
+    // 光源的 Z 坐标保持不变，因为我们是绕 Z 轴旋转
+
+    // 确保光源仍然指向目标位置
+    directionalLight.target.position.set(targetPosition.x, targetPosition.y, targetPosition.z);
+
+    // 更新光源以反映位置的变化
+    directionalLight.target.updateMatrixWorld();
+    directionalLight.updateMatrixWorld();
     render();
 }
 function updateLightAnglex(angle) {
 
+
     directionalLight.position.x=x_axis+angle*100
     directionalLight.target.position.x=x_axis
-    // directionalLight.position.y=y_axis+angle*100
-    // directionalLight.position.z=z_axis+angle*100
-    // const radians = angle * (Math.PI / 180);
-    // directionalLight.position.x = Math.cos(radians);
-    // directionalLight.position.z = Math.sin(radians);
+
     render();
 }
 function updateLightAngley(angle) {
     // directionalLight.position.x=x_axis+angle*100
     directionalLight.position.y=y_axis+angle*100
     directionalLight.target.position.y=y_axis
-    // directionalLight.position.z=z_axis+angle*100
-    // const radians = angle * (Math.PI / 180);
-    // directionalLight.position.x = Math.cos(radians);
-    // directionalLight.position.z = Math.sin(radians);
+
     render();
 }
 function updateLightAnglez(angle) {
-    // directionalLight.position.x=x_axis+angle*100
-    // directionalLight.position.y=y_axis+angle*100
     directionalLight.position.z=z_axis+angle*100
     directionalLight.target.position.z=z_axis
-    // const radians = angle * (Math.PI / 180);
-    // directionalLight.position.x = Math.cos(radians);
-    // directionalLight.position.z = Math.sin(radians);
+
     render();
 }
 function render() {
