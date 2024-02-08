@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Three.js OBJ Loader Example</title>
+
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        .slider { position: absolute; top: 20px; left: 20px; z-index: 10; }
+    </style>
+    <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.156.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.156.0/examples/jsm/"
+    }
+  }
+</script>
+</head>
+<body>
+<input type="range" min="-360" max="360" value="180" class="slider" id="lightSlider">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script type="module" src="/ttt.js"></script>
+
+
+</body>
+</html>
