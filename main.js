@@ -96,7 +96,7 @@ function init() {
         updateLightAnglez(angle);
     });
     const material = new THREE.MeshStandardMaterial({
-        color: 0xff0000, // 红色
+        color: 0xFF4500, // 红色
         roughness: 0.5, // 粗糙度
         metalness: 0.5, // 金属感
     });
@@ -257,7 +257,7 @@ function light_interesct(point){
     scene.add(arrowHelper);
     // 调用raycaster的intersectObjects方法检测与场景中所有物体的交点
     const intersections = raycaster.intersectObjects(Model_.children, true);
-    console.log(Model_.children)
+    // console.log(Model_.children)
     console.log(intersections,"intersections,")
     // 如果有交点，并且最近的交点距离小于点到光源的距离，则路径上有遮挡
 
@@ -283,10 +283,84 @@ function light_interesct(point){
     return false; // 路径上没有遮挡
 
 }
+function draw_diagram(intersects,event){
+    // console.log('光线反射值:', reflectance);
+        let light_list=[]
+        let reflectance=0
+        const step = 2; // 或根据需要调整
+        let currentValue=0
 
+// 设置间隔时间（毫秒）
+        const intervalTime = 10; // 每100毫秒移动一次
+
+// 创建一个定时器，逐步增加滑块的值
+        const interval = setInterval(() => {
+            // 增加当前值
+            currentValue += step;
+
+            // 检查是否达到最大值
+            if (currentValue > parseInt(360)) {
+                // console.log(`Reached max value: ${slider.max}`);
+                clearInterval(interval); // 停止定时器
+                console.log(light_list)
+
+
+                // 创建新的容器
+                var container = document.createElement('div');
+                container.id = 'canvasContainer';
+                container.style.width = '300px';
+                container.style.height = '300px';
+                container.style.position = 'absolute';
+                container.style.left = event.pageX + 'px';
+                container.style.top = event.pageY + 'px';
+                container.style.zIndex='999'
+                container.style.backgroundColor = '#FFFFFF'; //
+                // 创建新的Canvas元素
+                var canvas = document.createElement('canvas');
+                canvas.id = 'dynamicCanvas';
+
+                container.appendChild(canvas);
+                document.body.appendChild(container);
+
+                var ctx = canvas.getContext('2d');
+                // 使用Chart.js绘制折线图
+                var myChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: createTimeSeries(light_list),
+                        datasets: [{
+                            label: 'Light strength',
+                            data: light_list,
+                            fill: false,
+                            borderColor: 'rgb(75, 192, 192)',
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false, // 确保图表大小符合容器大小
+                        responsive: true // 让图表响应容器大小的变化
+                    }
+                });
+
+            } else {
+                // let intersect_judge=
+                updateLightAngle(currentValue)
+                if (!light_interesct(intersects[0].point)){
+
+                    reflectance = calculateReflectance(intersects[0]);
+                }else {
+                    reflectance=0
+                }
+
+                light_list.push(reflectance)
+                // slider.value = currentValue; // 更新滑块的值
+                // console.log(`Current slider value: ${currentValue}`); // 在控制台输出当前值
+            }
+        }, intervalTime);
+}
 function onClick(event) {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1.05;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
     raycaster.setFromCamera(mouse, camera);
     const intersects = raycaster.intersectObject(Model_, true);
@@ -296,77 +370,17 @@ function onClick(event) {
         if (oldContainer) {
             document.body.removeChild(oldContainer);
         }
-        let light_list=[]
+
         clickCoordinates.copy(intersects[0].point);
         addMarkerAtIntersect(intersects[0].point)
         console.log('点击坐标:', clickCoordinates);
-        let intersect_judge=light_interesct(intersects[0].point)
-        console.log(intersect_judge)
-        // console.log('光线反射值:', reflectance);
-
-//         const step = 5; // 或根据需要调整
-//         let currentValue=0
-//
-// // 设置间隔时间（毫秒）
-//         const intervalTime = 1; // 每100毫秒移动一次
-//
-// // 创建一个定时器，逐步增加滑块的值
-//         const interval = setInterval(() => {
-//             // 增加当前值
-//             currentValue += step;
-//
-//             // 检查是否达到最大值
-//             if (currentValue > parseInt(360)) {
-//                 // console.log(`Reached max value: ${slider.max}`);
-//                 clearInterval(interval); // 停止定时器
-//                 console.log(light_list)
-//
-//
-//                 // 创建新的容器
-//                 var container = document.createElement('div');
-//                 container.id = 'canvasContainer';
-//                 container.style.width = '300px';
-//                 container.style.height = '300px';
-//                 container.style.position = 'absolute';
-//                 container.style.left = event.pageX + 'px';
-//                 container.style.top = event.pageY + 'px';
-//                 container.style.zIndex='999'
-//                 container.style.backgroundColor = '#FFFFFF'; //
-//                 // 创建新的Canvas元素
-//                 var canvas = document.createElement('canvas');
-//                 canvas.id = 'dynamicCanvas';
-//
-//                 container.appendChild(canvas);
-//                 document.body.appendChild(container);
-//
-//                 var ctx = canvas.getContext('2d');
-//                 // 使用Chart.js绘制折线图
-//                 var myChart = new Chart(ctx, {
-//                     type: 'line',
-//                     data: {
-//                         labels: createTimeSeries(light_list),
-//                         datasets: [{
-//                             label: 'Light strength',
-//                             data: light_list,
-//                             fill: false,
-//                             borderColor: 'rgb(75, 192, 192)',
-//                             tension: 0.1
-//                         }]
-//                     },
-//                     options: {
-//                         maintainAspectRatio: false, // 确保图表大小符合容器大小
-//                         responsive: true // 让图表响应容器大小的变化
-//                     }
-//                 });
-//
-//             } else {
-//                 updateLightAngle(currentValue)
-//                 reflectance = calculateReflectance(intersects[0]);
-//                 light_list.push(reflectance)
-//                 // slider.value = currentValue; // 更新滑块的值
-//                 // console.log(`Current slider value: ${currentValue}`); // 在控制台输出当前值
-//             }
-//         }, intervalTime);
+        // let intersect_judge=light_interesct(intersects[0].point)
+        // if (!intersect_judge){
+        //     console.log(calculateReflectance(intersects[0]))
+        // }
+        // console.log(intersect_judge)
+        //
+        draw_diagram(intersects,event)
 
 
     }}
@@ -374,14 +388,18 @@ function onClick(event) {
 function calculateReflectance(intersection) {
     // 获取法线
     const normal = intersection.normal.clone();
-
+    normal.negate();
     // 获取到光源的向量
     const lightDirection = new THREE.Vector3();
     // directionalLight.getWorldDirection(lightDirection);
     // console.log(lightDirection)
     // console.log(directionalLight)
     // 计算光线反射
-    const dotProduct = Math.max(normal.dot(directionalLight.position), 0);
+    const direction = new THREE.Vector3().subVectors(directionalLight.position, directionalLight.target.position).normalize();
+    var arrowHelper = new THREE.ArrowHelper(normal, intersection.point, 12, 0x0000ff);
+    scene.add(arrowHelper);
+    const dotProduct = Math.max(normal.dot(direction),0);
+    console.log(normal.dot(direction),"dotProduct")
     const reflectance = dotProduct * directionalLight.intensity;
 
     return reflectance;
