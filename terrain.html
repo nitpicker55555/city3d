@@ -1,44 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- Include the CesiumJS JavaScript and CSS files -->
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.115/Build/Cesium/Cesium.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://cesium.com/downloads/cesiumjs/releases/1.115/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+</head>
 <style>
-  /*@import url(../templates/bucket.css);*/
-
-  #toolbar {
-    background: rgba(42, 42, 42, 0.8);
-    padding: 4px;
-    border-radius: 4px;
+  canvas { display: block; }
+  #cesiumContainer {
+    width: 100%;
+    height: 100vh;
+    position: relative; /* 确保父容器是定位元素 */
   }
-
-  #toolbar input {
-    vertical-align: middle;
-    padding-top: 2px;
-    padding-bottom: 2px;
+  #goToLocation {
+    position: absolute; /* 绝对定位使其能够悬浮 */
+    right: 20px; /* 距离容器右边界20px */
+    bottom: 20px; /* 距离容器底部20px */
+    z-index: 100; /* 确保按钮在Cesium视图上方 */
+    padding: 10px 20px; /* 增加一些内边距使按钮看起来更好 */
+    background-color: #007bff; /* 蓝色背景 */
+    color: white; /* 文字颜色为白色 */
+    border: none; /* 无边框 */
+    border-radius: 5px; /* 圆角边框 */
+    cursor: pointer; /* 鼠标悬停时显示指针 */
   }
-
-  #toolbar .header {
-    font-weight: bold;
+  #goToLocation:hover {
+    background-color: #0056b3; /* 鼠标悬停时的背景色 */
   }
 </style>
-<div id="cesiumContainer" class="fullSize"></div>
-<div id="loadingOverlay">
-  <h1>Loading...</h1>
+
+<body>
+
+<div id="cesiumContainer"></div>
+<input type="range" id="timeSlider" min="0" max="144" value="72">
+<button id="goToLocation">Go to Location</button>
+<script type="module">
+  // Your access token can be found at: https://ion.cesium.com/tokens.
+  // This is the default access token from your ion account
+  var longitude = 11.576124; // 例如：北京的经度
+  var latitude = 48.137154; // 例如：北京的纬度
+  var height = 900.0; // 目标观察高度，单位为米
+
+  // 定义按钮点击事件处理函数
+  document.getElementById('goToLocation').addEventListener('click', function() {
+    viewer.camera.flyTo({
+      destination: Cesium.Cartesian3.fromDegrees(longitude, latitude, height),
+      orientation: {
+        heading: Cesium.Math.toRadians(0), //
+        pitch: Cesium.Math.toRadians(-90), //
+        roll: 0.0
+      }
+    });
+  });
+  Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI5ZjBmNDMzNC1iYWE1LTQ3MzktYTQ5MC1lZmFjNjk3NTYzN2QiLCJpZCI6MTk0ODIzLCJpYXQiOjE3MDc0NzE0NzJ9.LhKp3KFaLreNR5Ktq9JVUm_JA8a4bhQFe2qCr080Vmk';
+
+  // Initialize the Cesium Viewer in the HTML element with the `cesiumContainer` ID.
+  const viewer = new Cesium.Viewer('cesiumContainer', {
+    terrain: Cesium.Terrain.fromWorldTerrain(),
+    animation:false,//隐藏掉时钟 图中6
+
+    timeline:false,//隐藏时间轴 图中7
+
+    fullscreenButton:false,//隐藏全屏按钮 图中8
+
+    geocoder:false,//隐藏搜索按钮 图中1
+
+    homeButton:false,//隐藏home按钮 图中2
+
+    navigationHelpButton:false,//隐藏帮助按钮 图中5
+
+    sceneModePicker:false,//隐藏切换二三维按钮 图中3
+
+    baseLayerPicker:false,//隐藏切换底图按钮 图中4
+
+    creditContainer:document.createElement("div"),//隐藏logo  图中9
+
+  });
+  // 创建一个用于监听屏幕空间事件的处理器
+  // viewer.clock.shouldAnimate = false;
+
+
+
+  var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+  function calculateDirectionVector(point1, point2) {
+    // 计算从点1到点2的向量
+    var directionVector = Cesium.Cartesian3.subtract(point2, point1, new Cesium.Cartesian3());
+
+    // 将向量规范化为单位向量
+    var unitDirectionVector = Cesium.Cartesian3.normalize(directionVector, new Cesium.Cartesian3());
+
+    return unitDirectionVector;
+  }
+  function getSunDirection(cartesian) {
+
+    var date = viewer.clock.currentTime
+
+    // 根据经纬度和高度创建点的位置
+    var pointPosition = cartesian;
+
+    // 计算太阳位置
+// 使用Cesium内置的太阳位置计算功能
+    var sunPosition = new Cesium.Cartesian3();
+    Cesium.Simon1994PlanetaryPositions.computeSunPositionInEarthInertialFrame(date,sunPosition);
+    // var sunPositionCartesian = Cesium.Cartesian3.fromArray(sunPosition);
+    var temeToPseudoFixedMatrix = Cesium.Transforms.computeTemeToPseudoFixedMatrix(date);
+
+// 使用转换矩阵将太阳位置从TEME转换到ECEF
+    var sunPositionECEF = Cesium.Matrix3.multiplyByVector(temeToPseudoFixedMatrix, sunPosition, new Cesium.Cartesian3());
+
+    console.log(cartesian,sunPositionECEF,"date")
+    // 计算从点位置指向太阳的向量
+    var sunDirection= calculateDirectionVector(cartesian,sunPositionECEF)
+    //
+    // Cesium.Cartesian3.subtract(sunPositionECEF, pointPosition, sunDirection);
+    // Cesium.Cartesian3.normalize(sunDirection, sunDirection);
+    // var startPoint = Cesium.Cartesian3.fromDegrees(pointPosition);
+    // var endPoint = Cesium.Cartesian3.fromDegrees(sunPosition);
+
+// 使用Polyline添加一条线来表示向量
+    add_vector(cartesian,sunDirection,Cesium.Color.WHITE)
+//     var vectorLine = viewer.entities.add({
+//       polyline: {
+//         positions: [pointPosition, sunPositionECEF],
+//         width: 2,
+//         material: Cesium.Color.WHITE, // 可以根据需要调整线的颜色
+//         arcType: Cesium.ArcType.NONE // 确保线段直接连接起点和终点
+//       }
+//     });
+
+    // viewer.zoomTo(viewer.entities);
+    // console.log("Sun Direction at Location:", sunDirection);
+    return sunDirection;
+  }
+  // 监听鼠标左键点击事件
+  // handler.setInputAction(function(click) {
+  //   var pickedObject = viewer.scene.pick(click.position);
+  //   // 确保点击到了对象
+  //   if (Cesium.defined(pickedObject)) {
+  //     var cartesian = viewer.scene.pickPosition(click.position);
+  //     // 确保获取到了有效的坐标
+  //     if (Cesium.defined(cartesian)) {
+  //       var cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+  //       var longitude = Cesium.Math.toDegrees(cartographic.longitude);
+  //       var latitude = Cesium.Math.toDegrees(cartographic.latitude);
+  //       var height = cartographic.height;
+  //       console.log('Longitude: ' + longitude + ', Latitude: ' + latitude + ', Height: ' + height);
+  //     }
+  //
+  //   }
+  // }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  function isSunBlockedByModel(viewer, pointPosition,direction) {
+    // 确保点位置和太阳位置是Cesium.Cartesian3实例
+
+
+    // 根据经纬度和高度创建点的位置
+    // 计算太阳位置
+
+
+    // 规范化方向向量
+    Cesium.Cartesian3.normalize(direction, direction);
+
+    // 创建射线
+    var ray = new Cesium.Ray(pointPosition, direction);
+    var startPoint = pointPosition;
+
+// 定义方向向量（在这个例子中，我们假设这个向量已经是规范化的）
+// 注意：这里的方向向量是一个笛卡尔坐标系中的向量，不是经纬度
+// 根据需要缩放方向向量（例如，将其长度扩大10000米）
+// add_vector(startPoint,direction,"RED")
+    // 使用射线检测是否与场景中的3D模型相交
+    var result = viewer.scene.pickFromRay(ray);
+
+    // 如果result不是undefined，说明射线与某个模型相交，即视线被遮挡
+    return result !== undefined;
+  }
+  let globalPageX = 0;
+  let globalPageY = 0;
+
+  // 全局监听鼠标移动事件来更新pageX和pageY
+  document.addEventListener('click', function(event) {
+    globalPageX = event.pageX;
+    globalPageY = event.pageY;
+    const oldContainer = document.getElementById('canvasContainer');
+    if (oldContainer) {
+      document.body.removeChild(oldContainer);
+    }
+  });
+function add_vector(startPoint,direction,color_str){
+  var scaledDirectionVector = Cesium.Cartesian3.multiplyByScalar(direction, 100, new Cesium.Cartesian3());
+
+// 计算终点坐标
+  var endPoint = Cesium.Cartesian3.add(startPoint, scaledDirectionVector, new Cesium.Cartesian3());
+
+// 使用Polyline添加一条线来表示向量
+  viewer.entities.add({
+    polyline: {
+      positions: [startPoint, endPoint],
+      width: 2,
+      material: color_str, // 可以根据需要调整线的颜色
+      // material: Cesium.Color.color_str, // 可以根据需要调整线的颜色
+      arcType: Cesium.ArcType.NONE // 确保线段直接连接起点和终点
+    }
+  });
+  // 使用射线检测是否与场景中的3D模型相交
+
+}
+  function calculate_normal(movement){
+    var cartesian = viewer.scene.pickPosition(movement.position);
+    if (Cesium.defined(cartesian)) {
+      // 计算法向量，即位置向量的标准化
+      var screenP0 = movement.position;
+      var screenP1 = new Cesium.Cartesian2(movement.position.x, movement.position.y - 5);
+      var screenP2 = new Cesium.Cartesian2(movement.position.x - 5, movement.position.y);
+
+// get the cartesian coordinates for each of them
+      var P0 = viewer.scene.pickPosition(screenP0);
+      var P1 = viewer.scene.pickPosition(screenP1);
+      var P2 = viewer.scene.pickPosition(screenP2);
+
+// calculate the Normal Vector by Cesium.Cartesian3.cross()
+      var vec1 = Cesium.Cartesian3.subtract(P1, P0, new Cesium.Cartesian3());
+      var vec2 = Cesium.Cartesian3.subtract(P2, P0, new Cesium.Cartesian3());
+      var surfaceNormal = Cesium.Cartesian3.cross(vec1, vec2, new Cesium.Cartesian3());
+      // console.log("Surface Normal: ", surfaceNormal);
+      add_vector(cartesian,surfaceNormal,Cesium.Color.BLUE)
+      // 如果需要，转换法向量为经纬度表示
+      // var normalCartographic = ellipsoid.cartesianToCartographic(surfaceNormal);
+      // console.log("Normal in Lat/Lon: ", Cesium.Math.toDegrees(normalCartographic.latitude), Cesium.Math.toDegrees(normalCartographic.longitude));
+      var sunDirection = getSunDirection(cartesian); // 使用上面提供的函数获取太阳方向
+      // var surfaceNormal = new Cesium.Cartesian3(0, 0, 1); // 假设平面法线朝上
+      add_vector(cartesian,sunDirection,Cesium.Color.RED)
+// 计算光照强度
+      var isblock=isSunBlockedByModel(viewer,cartesian,sunDirection)
+      console.log(isblock)
+      if (!isblock){
+        var lightIntensity = Math.max(Cesium.Cartesian3.dot(surfaceNormal, sunDirection), 0);
+
+      }else {
+        console.log("block")
+        lightIntensity=0
+      }
+      console.log("Light Intensity:", lightIntensity);
+      return lightIntensity
+
+
+
+    }
+  }
+  handler.setInputAction(function(movement) {
+    var cartesian = viewer.scene.pickPosition(movement.position);
+
+    //     // 确保获取到了有效的坐标
+      if (Cesium.defined(cartesian)) {
+        var cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+        var longitude = Cesium.Math.toDegrees(cartographic.longitude);
+        var latitude = Cesium.Math.toDegrees(cartographic.latitude);
+        var height = cartographic.height;
+        // console.log('Longitude: ' + longitude + ', Latitude: ' + latitude + ', Height: ' + height);
+      }
+    // calculate_normal(movement)
+    draw_diagram(movement)
+
+  }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  viewer.scene.globe.enableLighting = true
+  viewer.shadows = true
+  viewer.terrainShadows = Cesium.ShadowMode.RECEIVE_ONLY
+  //viewer.shadowMap.softShadows  = true
+  viewer.shadowMap.darkness = 0.02 //阴影透明度--越大越透明
+  let time = 0
+  // const buildingTileset = await Cesium.createOsmBuildingsAsync();
+  const tileset = viewer.scene.primitives.add(
+          await Cesium.Cesium3DTileset.fromIonAssetId(96188),
+  );
+  viewer.scene.primitives.add(tileset);
+  let baseTime = new Date();
+  function createTimeSeries(list) {
+    const totalMinutes = 24 * 60; // 一天总共有1440分钟
+    const interval = totalMinutes / list.length; // 根据列表长度计算时间间隔
+    let timeSeries = [];
+
+    for (let i = 0; i < list.length; i++) {
+      // 计算每个时间点
+      const minutes = Math.round(interval * i);
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+
+      // 格式化时间为 HH:mm 格式
+      const formattedTime = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+      timeSeries.push(formattedTime);
+    }
+
+    return timeSeries;
+  }
+  // 当滑块值改变时更新时间
+  document.getElementById('timeSlider').addEventListener('input', function(e) {
+    let minutesToAdd  = parseInt(e.target.value);
+    let newTime = new Date(baseTime.getTime());
+    newTime.setMinutes(newTime.getMinutes() + minutesToAdd *10);
+
+    let cesiumTime = Cesium.JulianDate.fromDate(newTime);
+    viewer.clock.currentTime = cesiumTime;
+    // viewer.timeline.zoomTo(cesiumTime, Cesium.JulianDate.addDays(cesiumTime, 1, new Cesium.JulianDate()));
+  });
+  // inter = setInterval(() => {
+  //   // 改变时间设置光照效果
+  //   let date = new Date().getTime() + time
+  //   let utc = Cesium.JulianDate.fromDate(new Date(date))
+  //   //北京时间
+  //   viewer.clockViewModel.currentTime = Cesium.JulianDate.addHours(utc, 0, new Cesium.JulianDate())
+  //   time = time + 1000 * 1000
+  //
+  // }, 100)
+  function updateLightAngle(angle_num) {
+    let minutesToAdd = angle_num;
+    let newTime = new Date(baseTime.getTime());
+    newTime.setMinutes(newTime.getMinutes() + minutesToAdd*10);
+
+    let cesiumTime = Cesium.JulianDate.fromDate(newTime);
+    viewer.clock.currentTime = cesiumTime;
+  }
+  function draw_diagram(intersects){
+    // console.log('光线反射值:', reflectance);
+    let light_list=[]
+    let reflectance=0
+    const step = 2; // 或根据需要调整
+    let currentValue=0
+
+// 设置间隔时间（毫秒）
+    const intervalTime = 10; // 每100毫秒移动一次
+
+// 创建一个定时器，逐步增加滑块的值
+    const interval = setInterval(() => {
+      // 增加当前值
+      currentValue += step;
+
+      // 检查是否达到最大值
+      if (currentValue > parseInt(144)) {
+        // console.log(`Reached max value: ${slider.max}`);
+        clearInterval(interval); // 停止定时器
+        console.log(light_list)
+
+
+        // 创建新的容器
+        var container = document.createElement('div');
+        container.id = 'canvasContainer';
+        container.style.width = '300px';
+        container.style.height = '300px';
+        container.style.position = 'absolute';
+        container.style.left = globalPageX + 'px';
+        container.style.top = globalPageY + 'px';
+        container.style.zIndex='999'
+        container.style.backgroundColor = '#FFFFFF'; //
+        // 创建新的Canvas元素
+        var canvas = document.createElement('canvas');
+        canvas.id = 'dynamicCanvas';
+
+        container.appendChild(canvas);
+        document.body.appendChild(container);
+
+        var ctx = canvas.getContext('2d');
+        // 使用Chart.js绘制折线图
+        var myChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: createTimeSeries(light_list),
+            datasets: [{
+              label: 'Light strength',
+              data: light_list,
+              fill: false,
+              borderColor: 'rgb(75, 192, 192)',
+              tension: 0.1
+            }]
+          },
+          options: {
+            maintainAspectRatio: false,
+            responsive: true
+          }
+        });
+
+      } else {
+        // let intersect_judge=
+        updateLightAngle(currentValue)
+        reflectance=calculate_normal(intersects)
+        light_list.push(reflectance)
+        // slider.value = currentValue; // 更新滑块的值
+        // console.log(`Current slider value: ${currentValue}`); // 在控制台输出当前值
+      }
+    }, intervalTime);
+  }
+
+  // Fly the camera to San Francisco at the given longitude, latitude, and height.
+  viewer.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(11.576124, 48.137154, 900),
+
+    orientation: {
+      heading: Cesium.Math.toRadians(0.0),
+      pitch: Cesium.Math.toRadians(-15.0),
+    }
+  });
+
+</script>
 </div>
-<div id="toolbar">
-  <table>
-    <tbody>
-    <tr>
-      <td>Exaggeration</td>
-      <td>
-        <input type="range" min="1" max="5" step="0.01" data-bind="value: exaggeration, valueUpdate: 'input'">
-        <input type="text" size="5" data-bind="value: exaggeration">
-      </td>
-    </tr>
-    <tr>
-      <td>Relative Height</td>
-      <td>
-        <input type="range" min="-1000" max="9000" step="1" data-bind="value: relativeHeight, valueUpdate: 'input'">
-        <input type="text" size="5" data-bind="value: relativeHeight">
-      </td>
-    </tr>
-    </tbody>
-  </table>
-</div>
-    
+</body>
+</html>
