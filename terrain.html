@@ -120,7 +120,7 @@
     // var endPoint = Cesium.Cartesian3.fromDegrees(sunPosition);
 
 // 使用Polyline添加一条线来表示向量
-    add_vector(cartesian,sunDirection,Cesium.Color.WHITE)
+//     add_vector(cartesian,sunDirection,Cesium.Color.WHITE)
 //     var vectorLine = viewer.entities.add({
 //       polyline: {
 //         positions: [pointPosition, sunPositionECEF],
@@ -189,7 +189,7 @@
     }
   });
 function add_vector(startPoint,direction,color_str){
-  var scaledDirectionVector = Cesium.Cartesian3.multiplyByScalar(direction, 100, new Cesium.Cartesian3());
+  var scaledDirectionVector = Cesium.Cartesian3.multiplyByScalar(direction, 10, new Cesium.Cartesian3());
 
 // 计算终点坐标
   var endPoint = Cesium.Cartesian3.add(startPoint, scaledDirectionVector, new Cesium.Cartesian3());
@@ -250,16 +250,7 @@ function add_vector(startPoint,direction,color_str){
     }
   }
   handler.setInputAction(function(movement) {
-    var cartesian = viewer.scene.pickPosition(movement.position);
 
-    //     // 确保获取到了有效的坐标
-      if (Cesium.defined(cartesian)) {
-        var cartographic = Cesium.Cartographic.fromCartesian(cartesian);
-        var longitude = Cesium.Math.toDegrees(cartographic.longitude);
-        var latitude = Cesium.Math.toDegrees(cartographic.latitude);
-        var height = cartographic.height;
-        // console.log('Longitude: ' + longitude + ', Latitude: ' + latitude + ', Height: ' + height);
-      }
     // calculate_normal(movement)
     draw_diagram(movement)
 
@@ -268,7 +259,7 @@ function add_vector(startPoint,direction,color_str){
   viewer.shadows = true
   viewer.terrainShadows = Cesium.ShadowMode.RECEIVE_ONLY
   //viewer.shadowMap.softShadows  = true
-  viewer.shadowMap.darkness = 0.02 //阴影透明度--越大越透明
+  viewer.shadowMap.darkness = 0.2 //阴影透明度--越大越透明
   let time = 0
   // const buildingTileset = await Cesium.createOsmBuildingsAsync();
   const tileset = viewer.scene.primitives.add(
@@ -282,16 +273,17 @@ function add_vector(startPoint,direction,color_str){
     let timeSeries = [];
 
     for (let i = 0; i < list.length; i++) {
-      // 计算每个时间点
-      const minutes = Math.round(interval * i);
-      const hours = Math.floor(minutes / 60);
-      const mins = minutes % 60;
+      // 计算每个时间点，从中午12点开始
+      const minutes = Math.round(interval * i) + 720; // 在这里加720使起点为12:00
+      const wrappedMinutes = minutes % totalMinutes; // 确保时间不会超过一天的分钟数
+      const hours = Math.floor(wrappedMinutes / 60);
+      const mins = wrappedMinutes % 60;
 
       // 格式化时间为 HH:mm 格式
       const formattedTime = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
       timeSeries.push(formattedTime);
     }
-
+    console.log(timeSeries)
     return timeSeries;
   }
   // 当滑块值改变时更新时间
@@ -316,7 +308,7 @@ function add_vector(startPoint,direction,color_str){
   function updateLightAngle(angle_num) {
     let minutesToAdd = angle_num;
     let newTime = new Date(baseTime.getTime());
-    newTime.setMinutes(newTime.getMinutes() + minutesToAdd*10);
+    newTime.setMinutes( minutesToAdd*10);
 
     let cesiumTime = Cesium.JulianDate.fromDate(newTime);
     viewer.clock.currentTime = cesiumTime;
