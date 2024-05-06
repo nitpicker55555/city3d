@@ -1,13 +1,23 @@
-from lxml import etree
+import json
 
-# 假设你已经有了一个CityGML文件
-citygml_file = 'your_citygml_file.gml'
 
-# 使用lxml解析CityGML文件
-tree = etree.parse(citygml_file)
-root = tree.getroot()
+def read_geojson_points(filename):
+    points_coordinates = []
 
-# 提取并处理你感兴趣的信息（例如建筑物的几何形状）
-# 注意：这里需要根据CityGML的结构和你的需求进行相应的查询和处理
+    with open(filename, 'r') as file:
+        data = json.load(file)
 
-# 这只是一个示例，实际上你需要根据CityGML的结构和你的具体需求来编写代码
+    # 检查GeoJSON是否为FeatureCollection类型
+    if data['type'] == 'FeatureCollection':
+        for feature in data['features']:
+            if feature['geometry']['type'] == 'Point':
+                # 提取点的坐标并添加到列表中
+                points_coordinates.append(feature['geometry']['coordinates'])
+
+    return points_coordinates
+
+
+# 使用函数读取本地GeoJSON文件
+# 假设文件名为'my_geojson.geojson'
+coordinates = read_geojson_points('intermediate_points.geojson')
+print(coordinates)
