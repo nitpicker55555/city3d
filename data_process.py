@@ -1,9 +1,4 @@
-from flask import Flask, render_template, jsonify, request
-import json
-from get_sun_direction import calculate_sunray_direction_vector
-from embree import cal_intensity
-app = Flask(__name__)
-data_ori = [
+data_ori  = [
     [
         11.574561100000002,
         48.1443432,
@@ -32700,51 +32695,7 @@ data_ori = [
         567.747648082262
     ]
 ]
-
-@app.route('/')
-def home():
-    return render_template('embree_index.html')
-def read_geojson_points():
-    points_coordinates = []
-
-    with open('intermediate_points.geojson', 'r') as file:
-        data = json.load(file)
-        points_coordinates = []
-
-        if data['type'] == 'FeatureCollection':
-            for feature in data['features']:
-                if feature['geometry']['type'] == 'Point':
-                    points_coordinates.append(feature['geometry']['coordinates'])
-
-    return points_coordinates
-
-@app.route('/get-time', methods=['POST'])
-def get_time():
-
-    data = request.get_json()
-
-    time_str=data['key']['time']
-    date_str=data['key']['date']
-    # sun_vec=list(data['key']['sun_vec'].values())
-    # print(sun_vec)
-    # print(date_str,time_str)
-    sun_vec=calculate_sunray_direction_vector(date_str,time_str,data_ori[0][1],data_ori[0][0])
-    # sun_vec=[       0.6043474989780665,
-    #         -0.7413328011100698,
-    #         0.2918728806813915]
-    # print(sun_vec)
-
-    intensity_list=cal_intensity(sun_vec,data_ori)
-    geojson_content={
-        "type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577608, 48.141452], [11.577498, 48.141475], [11.577387, 48.141497], [11.577289, 48.141517], [11.577244, 48.141526], [11.577108, 48.141553], [11.576997, 48.141576], [11.576923, 48.141591]]]}, "properties": {"id": 218, "seq": 8, "shade": 0.6}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580447, 48.142648], [11.580475, 48.142639], [11.580497, 48.142624], [11.580511, 48.142606], [11.580516, 48.142585], [11.58051, 48.142565]]]}, "properties": {"id": 247, "seq": 29, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577414, 48.140425], [11.577403, 48.14049]]]}, "properties": {"id": 343, "seq": 2, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.57809, 48.140288], [11.577996, 48.140323], [11.577742, 48.140378], [11.577499, 48.140416], [11.577414, 48.140425]]]}, "properties": {"id": 344, "seq": 1, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580327, 48.142384], [11.579794, 48.142497]]]}, "properties": {"id": 363, "seq": 26, "shade": 0.6}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580815, 48.142506], [11.580718, 48.1423], [11.580327, 48.142384]]]}, "properties": {"id": 366, "seq": 27, "shade": 0.8}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.579794, 48.142497], [11.579737, 48.142379]]]}, "properties": {"id": 369, "seq": 25, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.578207, 48.142571], [11.578562, 48.142499]]]}, "properties": {"id": 397, "seq": 21, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.578207, 48.142571], [11.578265, 48.142693]]]}, "properties": {"id": 398, "seq": 20, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.578265, 48.142693], [11.578313, 48.142795]]]}, "properties": {"id": 402, "seq": 19, "shade": 0.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.578562, 48.142499], [11.57915, 48.142378]]]}, "properties": {"id": 403, "seq": 22, "shade": 0.4}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.579205, 48.142492], [11.579737, 48.142379]]]}, "properties": {"id": 408, "seq": 24, "shade": 0.4}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.579205, 48.142492], [11.57915, 48.142378]]]}, "properties": {"id": 409, "seq": 23, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577445, 48.140797], [11.577403, 48.14049]]]}, "properties": {"id": 558, "seq": 3, "shade": 0.33333333333333337}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577445, 48.140797], [11.577457, 48.140881]]]}, "properties": {"id": 559, "seq": 4, "shade": 0.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.576923, 48.141591], [11.576815, 48.141403]]]}, "properties": {"id": 571, "seq": 7, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577692, 48.141844], [11.577657, 48.141673], [11.577608, 48.141452]]]}, "properties": {"id": 572, "seq": 9, "shade": 0.6666666666666667}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.57756, 48.141259], [11.577497, 48.141032], [11.577457, 48.140881]]]}, "properties": {"id": 573, "seq": 5, "shade": 0.6666666666666667}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580815, 48.142506], [11.58051, 48.142565]]]}, "properties": {"id": 1008, "seq": 28, "shade": 0.6666666666666667}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580447, 48.142648], [11.580533, 48.142833]]]}, "properties": {"id": 1012, "seq": 30, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580533, 48.142833], [11.580149, 48.142913]]]}, "properties": {"id": 1013, "seq": 31, "shade": 0.33333333333333337}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580151, 48.142973], [11.580157, 48.142943], [11.580149, 48.142913]]]}, "properties": {"id": 1016, "seq": 32, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577938, 48.142874], [11.577924, 48.142783], [11.577919, 48.142703]]]}, "properties": {"id": 1220, "seq": 17, "shade": 0.5}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577839, 48.142536], [11.577886, 48.142585], [11.577919, 48.142703]]]}, "properties": {"id": 1221, "seq": 16, "shade": 0.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577318, 48.142386], [11.577288, 48.142321]]]}, "properties": {"id": 1328, "seq": 12, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577414, 48.142586], [11.577371, 48.14249], [11.577318, 48.142386]]]}, "properties": {"id": 1330, "seq": 13, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577692, 48.141844], [11.577114, 48.141947]]]}, "properties": {"id": 1364, "seq": 10, "shade": 0.8}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577114, 48.141947], [11.577288, 48.142321]]]}, "properties": {"id": 1365, "seq": 11, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.57756, 48.141259], [11.577467, 48.141288], [11.577371, 48.141302], [11.576897, 48.141388], [11.576815, 48.141403]]]}, "properties": {"id": 1433, "seq": 6, "shade": 0.5}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577938, 48.142874], [11.57817, 48.142825], [11.578273, 48.142803], [11.578313, 48.142795]]]}, "properties": {"id": 1668, "seq": 18, "shade": 0.6666666666666667}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577824, 48.142511], [11.577727, 48.142515], [11.577413, 48.142586]]]}, "properties": {"id": 2025, "seq": 14, "shade": 0.5}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577824, 48.142511], [11.577839, 48.142536]]]}, "properties": {"id": 2057, "seq": 15, "shade": 1.0}}]}
-    # print(intensity_list)
-    return jsonify({'lines':geojson_content}), 200
-    # return jsonify({'intensity': intensity_list,'data_ori':data_ori}), 200
-@app.route('/send-data', methods=['POST'])
-def receive_data():
-    data = request.get_json()
-    print(data)
-    data2 = read_geojson_points()
-    return jsonify({'message': data2}), 200
-if __name__ == '__main__':
-    app.run(debug=True,host='0.0.0.0')
+data=[]
+for i in data_ori:
+    data.append(i[2])
+print(sum(data)/len(data))

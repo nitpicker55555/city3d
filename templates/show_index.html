@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time and Date Picker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="container">
+    <div class="time-display">
+        <span id="time-display">16:48</span>
+        <input type="date" id="date-picker" value="2024-05-14">
+        <button id="reset-button" onclick="resetTime()">⟳</button>
+    </div>
+    <div class="slider-container">
+        <span>Sunrise</span>
+        <input type="range" id="time-slider" min="0" max="144" value="98" oninput="updateTime()">
+        <span>Sunset</span>
+    </div>
+</div>
+<script src="script.js"></script>
+</body>
+</html>

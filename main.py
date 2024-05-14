@@ -1,5 +1,5 @@
 import json
-
+import pyperclip
 
 def read_geojson_points(filename):
     points_coordinates = []
@@ -19,5 +19,6 @@ def read_geojson_points(filename):
 
 # 使用函数读取本地GeoJSON文件
 # 假设文件名为'my_geojson.geojson'
-coordinates = read_geojson_points('intermediate_points.geojson')
-print(coordinates)
+coordinates = read_geojson_points(r"C:\Users\Morning\Desktop\intermediate_points2.geojson")
+pyperclip.copy(str(coordinates))
+# print(coordinates)
