@@ -8,7 +8,8 @@
   <link href="https://cesium.com/downloads/cesiumjs/releases/1.115/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.5/proj4.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+<!--  <link rel="stylesheet" href="styles.css">-->
 </head>
 <style>
   canvas { display: block; }
@@ -16,6 +17,15 @@
     width: 100%;
     height: 100vh;
     position: relative; /* 确保父容器是定位元素 */
+  }
+  #canvasContainer {
+    width: 300px;
+    height: 300px;
+    position: absolute;
+    z-index: 999;
+    background: rgba(0, 0, 0, 0.5); /* 黑色背景，带有透明度 */
+    backdrop-filter: blur(10px); /* 应用模糊效果 */
+    border: 1px solid rgba(255, 255, 255, 0.18); /* 可选的边框，增加磨砂玻璃效果 */
   }
   #goToLocation {
     position: absolute; /* 绝对定位使其能够悬浮 */
@@ -32,18 +42,42 @@
   #goToLocation:hover {
     background-color: #0056b3; /* 鼠标悬停时的背景色 */
   }
+  .loader {
+    position: absolute; /* 绝对定位使其能够悬浮 */
+    border: 16px solid #f3f3f3;
+    border-radius: 50%;
+    border-top: 16px solid blue;
+    border-right: 16px solid green;
+    border-bottom: 16px solid red;
+    border-left: 16px solid pink;
+    width: 120px;
+    height: 120px;
+    animation: spin 2s linear infinite;
+    display: none; /* 初始隐藏 */
+    z-index: 1000;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* 使用 transform 居中 */
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
 </style>
 
 <body>
-
+<div id="loader" class="loader"></div>
+<div id="content"></div>
 <div id="cesiumContainer"></div>
 <!--<input type="range" id="timeSlider" min="0" max="144" value="72">-->
-<button id="goToLocation">Go to Location</button>
-<button id="calculate">calculate</button>
+<!--<button id="goToLocation">Go to Location</button>-->
+<!--<button id="calculate">calculate</button>-->
 <div class="container">
   <div class="time-display">
     <span id="time-display">16:48</span>
     <input type="date" id="date-picker" value="2024-05-14">
+    <button id="mode-button" >Simulation</button>
     <button id="reset-button" onclick="resetTime()">⟳</button>
   </div>
   <div class="slider-container">
@@ -53,104 +87,137 @@
   </div>
   <br>
   <div class="slider-container-second">
-    <span>Shade</span>
-    <input type="range" id="time-slider-second" min="0" max="144" value="98" oninput="updateTime()">
-    <span>Shortest</span>
+    <span id="left-label">Shade</span>
+    <input type="range" id="time-slider-second" min="0" max="1" step="0.01" value="0.5">
+    <span id="right-label">Shortest</span>
   </div>
 </div>
 <script type="module">
   // Your access token can be found at: https://ion.cesium.com/tokens.
   // This is the default access token from your ion account
+  var simulation_mode=false
   var click_point=[]
   var longitude = 11.573213852350015;
   var latitude =  48.13659884837134;
   var height = 900.0; // 目标观察高度，单位为米
   var circles=[];
+  var result_lines=[];
+  var lines_list=[];
   var object_list=[]
+
   // 定义按钮点击事件处理函数
-  document.getElementById('goToLocation').addEventListener('click', function() {
-    let fly_list=[]
-// 创建Cesium Viewer实例
-    const geojson = {
-      "type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577608, 48.141452], [11.577498, 48.141475], [11.577387, 48.141497], [11.577289, 48.141517], [11.577244, 48.141526], [11.577108, 48.141553], [11.576997, 48.141576], [11.576923, 48.141591]]]}, "properties": {"id": 218, "seq": 8, "shade": 0.6}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580447, 48.142648], [11.580475, 48.142639], [11.580497, 48.142624], [11.580511, 48.142606], [11.580516, 48.142585], [11.58051, 48.142565]]]}, "properties": {"id": 247, "seq": 29, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577414, 48.140425], [11.577403, 48.14049]]]}, "properties": {"id": 343, "seq": 2, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.57809, 48.140288], [11.577996, 48.140323], [11.577742, 48.140378], [11.577499, 48.140416], [11.577414, 48.140425]]]}, "properties": {"id": 344, "seq": 1, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580327, 48.142384], [11.579794, 48.142497]]]}, "properties": {"id": 363, "seq": 26, "shade": 0.6}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580815, 48.142506], [11.580718, 48.1423], [11.580327, 48.142384]]]}, "properties": {"id": 366, "seq": 27, "shade": 0.8}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.579794, 48.142497], [11.579737, 48.142379]]]}, "properties": {"id": 369, "seq": 25, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.578207, 48.142571], [11.578562, 48.142499]]]}, "properties": {"id": 397, "seq": 21, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.578207, 48.142571], [11.578265, 48.142693]]]}, "properties": {"id": 398, "seq": 20, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.578265, 48.142693], [11.578313, 48.142795]]]}, "properties": {"id": 402, "seq": 19, "shade": 0.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.578562, 48.142499], [11.57915, 48.142378]]]}, "properties": {"id": 403, "seq": 22, "shade": 0.4}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.579205, 48.142492], [11.579737, 48.142379]]]}, "properties": {"id": 408, "seq": 24, "shade": 0.4}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.579205, 48.142492], [11.57915, 48.142378]]]}, "properties": {"id": 409, "seq": 23, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577445, 48.140797], [11.577403, 48.14049]]]}, "properties": {"id": 558, "seq": 3, "shade": 0.33333333333333337}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577445, 48.140797], [11.577457, 48.140881]]]}, "properties": {"id": 559, "seq": 4, "shade": 0.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.576923, 48.141591], [11.576815, 48.141403]]]}, "properties": {"id": 571, "seq": 7, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577692, 48.141844], [11.577657, 48.141673], [11.577608, 48.141452]]]}, "properties": {"id": 572, "seq": 9, "shade": 0.6666666666666667}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.57756, 48.141259], [11.577497, 48.141032], [11.577457, 48.140881]]]}, "properties": {"id": 573, "seq": 5, "shade": 0.6666666666666667}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580815, 48.142506], [11.58051, 48.142565]]]}, "properties": {"id": 1008, "seq": 28, "shade": 0.6666666666666667}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580447, 48.142648], [11.580533, 48.142833]]]}, "properties": {"id": 1012, "seq": 30, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580533, 48.142833], [11.580149, 48.142913]]]}, "properties": {"id": 1013, "seq": 31, "shade": 0.33333333333333337}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580151, 48.142973], [11.580157, 48.142943], [11.580149, 48.142913]]]}, "properties": {"id": 1016, "seq": 32, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577938, 48.142874], [11.577924, 48.142783], [11.577919, 48.142703]]]}, "properties": {"id": 1220, "seq": 17, "shade": 0.5}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577839, 48.142536], [11.577886, 48.142585], [11.577919, 48.142703]]]}, "properties": {"id": 1221, "seq": 16, "shade": 0.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577318, 48.142386], [11.577288, 48.142321]]]}, "properties": {"id": 1328, "seq": 12, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577414, 48.142586], [11.577371, 48.14249], [11.577318, 48.142386]]]}, "properties": {"id": 1330, "seq": 13, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577692, 48.141844], [11.577114, 48.141947]]]}, "properties": {"id": 1364, "seq": 10, "shade": 0.8}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577114, 48.141947], [11.577288, 48.142321]]]}, "properties": {"id": 1365, "seq": 11, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.57756, 48.141259], [11.577467, 48.141288], [11.577371, 48.141302], [11.576897, 48.141388], [11.576815, 48.141403]]]}, "properties": {"id": 1433, "seq": 6, "shade": 0.5}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577938, 48.142874], [11.57817, 48.142825], [11.578273, 48.142803], [11.578313, 48.142795]]]}, "properties": {"id": 1668, "seq": 18, "shade": 0.6666666666666667}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577824, 48.142511], [11.577727, 48.142515], [11.577413, 48.142586]]]}, "properties": {"id": 2025, "seq": 14, "shade": 0.5}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577824, 48.142511], [11.577839, 48.142536]]]}, "properties": {"id": 2057, "seq": 15, "shade": 1.0}}]}
-
-    const features = geojson.features;
-
-    const promises = features.map(feature => {
-      const coordinates = feature.geometry.coordinates[0];
-      const positions = coordinates.map(coord => Cesium.Cartographic.fromDegrees(coord[0], coord[1]));
-
-      return Cesium.sampleTerrain(viewer.terrainProvider, 13, positions)
-              .then(updatedPositions => {
-                const shade = feature.properties.shade;
-                const color = getColorFromShade(shade)
-
-                return viewer.entities.add({
-                  polyline: {
-                    positions: Cesium.Cartesian3.fromDegreesArrayHeights(
-                            updatedPositions.flatMap(pos =>
-                                    [Cesium.Math.toDegrees(pos.longitude), Cesium.Math.toDegrees(pos.latitude), pos.height]
-                            ),
-
-
-                    ),
-                    width: 15,
-                    material: color
-                  }
-                });
-              });
-    });
-
-    Promise.all(promises).then(() => {
-      viewer.zoomTo(viewer.entities);
-      const property = new Cesium.SampledPositionProperty();
-      fly_list.forEach((coord, index) => {
-        const time = Cesium.JulianDate.addSeconds(Cesium.JulianDate.now(), index * 5, new Cesium.JulianDate());
-        const position = Cesium.Cartesian3.fromRadians(coord[0], coord[1], coord[2]);
-        property.addSample(time, position);
-      });
-
-      // 创建路径实体
-      viewer.entities.add({
-        availability: new Cesium.TimeIntervalCollection([new Cesium.TimeInterval({
-          start: Cesium.JulianDate.now(),
-          stop: Cesium.JulianDate.addSeconds(Cesium.JulianDate.now(), coordinates.length * 5, new Cesium.JulianDate())
-        })]),
-        position: property,
-        point: { pixelSize: 10, color: Cesium.Color.RED },
-        path: {
-          resolution: 1,
-          material: new Cesium.PolylineGlowMaterialProperty({
-            glowPower: 0.1,
-            color: Cesium.Color.YELLOW
-          }),
-          width: 10
-        }
-      });
-
-      // 设置相机路径
-      viewer.clock.startTime = Cesium.JulianDate.now();
-      viewer.clock.stopTime = Cesium.JulianDate.addSeconds(Cesium.JulianDate.now(), coordinates.length * 5, new Cesium.JulianDate());
-      viewer.clock.currentTime = viewer.clock.startTime;
-      viewer.clock.clockRange = Cesium.ClockRange.CLAMPED;
-      viewer.clock.clockStep = Cesium.ClockStep.SYSTEM_CLOCK;
-      viewer.clock.multiplier = 1;
-
-      viewer.trackedEntity = viewer.entities.values[0];
-    });
-
-  })
+//   document.getElementById('goToLocation').addEventListener('click', function() {
+//     let fly_list=[]
+// // 创建Cesium Viewer实例
+//     const geojson = {
+//       "type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577608, 48.141452], [11.577498, 48.141475], [11.577387, 48.141497], [11.577289, 48.141517], [11.577244, 48.141526], [11.577108, 48.141553], [11.576997, 48.141576], [11.576923, 48.141591]]]}, "properties": {"id": 218, "seq": 8, "shade": 0.6}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580447, 48.142648], [11.580475, 48.142639], [11.580497, 48.142624], [11.580511, 48.142606], [11.580516, 48.142585], [11.58051, 48.142565]]]}, "properties": {"id": 247, "seq": 29, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577414, 48.140425], [11.577403, 48.14049]]]}, "properties": {"id": 343, "seq": 2, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.57809, 48.140288], [11.577996, 48.140323], [11.577742, 48.140378], [11.577499, 48.140416], [11.577414, 48.140425]]]}, "properties": {"id": 344, "seq": 1, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580327, 48.142384], [11.579794, 48.142497]]]}, "properties": {"id": 363, "seq": 26, "shade": 0.6}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580815, 48.142506], [11.580718, 48.1423], [11.580327, 48.142384]]]}, "properties": {"id": 366, "seq": 27, "shade": 0.8}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.579794, 48.142497], [11.579737, 48.142379]]]}, "properties": {"id": 369, "seq": 25, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.578207, 48.142571], [11.578562, 48.142499]]]}, "properties": {"id": 397, "seq": 21, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.578207, 48.142571], [11.578265, 48.142693]]]}, "properties": {"id": 398, "seq": 20, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.578265, 48.142693], [11.578313, 48.142795]]]}, "properties": {"id": 402, "seq": 19, "shade": 0.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.578562, 48.142499], [11.57915, 48.142378]]]}, "properties": {"id": 403, "seq": 22, "shade": 0.4}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.579205, 48.142492], [11.579737, 48.142379]]]}, "properties": {"id": 408, "seq": 24, "shade": 0.4}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.579205, 48.142492], [11.57915, 48.142378]]]}, "properties": {"id": 409, "seq": 23, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577445, 48.140797], [11.577403, 48.14049]]]}, "properties": {"id": 558, "seq": 3, "shade": 0.33333333333333337}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577445, 48.140797], [11.577457, 48.140881]]]}, "properties": {"id": 559, "seq": 4, "shade": 0.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.576923, 48.141591], [11.576815, 48.141403]]]}, "properties": {"id": 571, "seq": 7, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577692, 48.141844], [11.577657, 48.141673], [11.577608, 48.141452]]]}, "properties": {"id": 572, "seq": 9, "shade": 0.6666666666666667}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.57756, 48.141259], [11.577497, 48.141032], [11.577457, 48.140881]]]}, "properties": {"id": 573, "seq": 5, "shade": 0.6666666666666667}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580815, 48.142506], [11.58051, 48.142565]]]}, "properties": {"id": 1008, "seq": 28, "shade": 0.6666666666666667}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580447, 48.142648], [11.580533, 48.142833]]]}, "properties": {"id": 1012, "seq": 30, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580533, 48.142833], [11.580149, 48.142913]]]}, "properties": {"id": 1013, "seq": 31, "shade": 0.33333333333333337}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580151, 48.142973], [11.580157, 48.142943], [11.580149, 48.142913]]]}, "properties": {"id": 1016, "seq": 32, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577938, 48.142874], [11.577924, 48.142783], [11.577919, 48.142703]]]}, "properties": {"id": 1220, "seq": 17, "shade": 0.5}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577839, 48.142536], [11.577886, 48.142585], [11.577919, 48.142703]]]}, "properties": {"id": 1221, "seq": 16, "shade": 0.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577318, 48.142386], [11.577288, 48.142321]]]}, "properties": {"id": 1328, "seq": 12, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577414, 48.142586], [11.577371, 48.14249], [11.577318, 48.142386]]]}, "properties": {"id": 1330, "seq": 13, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577692, 48.141844], [11.577114, 48.141947]]]}, "properties": {"id": 1364, "seq": 10, "shade": 0.8}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577114, 48.141947], [11.577288, 48.142321]]]}, "properties": {"id": 1365, "seq": 11, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.57756, 48.141259], [11.577467, 48.141288], [11.577371, 48.141302], [11.576897, 48.141388], [11.576815, 48.141403]]]}, "properties": {"id": 1433, "seq": 6, "shade": 0.5}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577938, 48.142874], [11.57817, 48.142825], [11.578273, 48.142803], [11.578313, 48.142795]]]}, "properties": {"id": 1668, "seq": 18, "shade": 0.6666666666666667}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577824, 48.142511], [11.577727, 48.142515], [11.577413, 48.142586]]]}, "properties": {"id": 2025, "seq": 14, "shade": 0.5}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577824, 48.142511], [11.577839, 48.142536]]]}, "properties": {"id": 2057, "seq": 15, "shade": 1.0}}]}
+//
+//     const features = geojson.features;
+//
+//     const promises = features.map(feature => {
+//       const coordinates = feature.geometry.coordinates[0];
+//       const positions = coordinates.map(coord => Cesium.Cartographic.fromDegrees(coord[0], coord[1]));
+//
+//       return Cesium.sampleTerrain(viewer.terrainProvider, 13, positions)
+//               .then(updatedPositions => {
+//                 const shade = feature.properties.shade;
+//                 const color = getColorFromShade(shade);
+//
+//                 // 确保 updatedPositions 是有效的
+//                 if (updatedPositions.length < 2) {
+//                   throw new Error("Insufficient positions to create cylinders");
+//                 }
+//
+//                 // 打印调试信息
+//                 console.log("Original Positions with Terrain Heights:", updatedPositions);
+//
+//                 for (let i = 0; i < updatedPositions.length - 1; i++) {
+//                   const startLongitude = Cesium.Math.toDegrees(updatedPositions[i].longitude);
+//                   const startLatitude = Cesium.Math.toDegrees(updatedPositions[i].latitude);
+//                   const startHeight = updatedPositions[i].height;
+//
+//                   const endLongitude = Cesium.Math.toDegrees(updatedPositions[i + 1].longitude);
+//                   const endLatitude = Cesium.Math.toDegrees(updatedPositions[i + 1].latitude);
+//                   const endHeight = updatedPositions[i + 1].height;
+//
+//                   // 打印提取的起点和终点信息
+//                   console.log(`Cylinder ${i} - Start Position:`, startLongitude, startLatitude, startHeight);
+//                   console.log(`Cylinder ${i} - End Position:`, endLongitude, endLatitude, endHeight);
+//
+//                   // 获取起点和终点
+//                   const start = Cesium.Cartesian3.fromDegrees(startLongitude, startLatitude, startHeight);
+//                   const end = Cesium.Cartesian3.fromDegrees(endLongitude, endLatitude, endHeight);
+//
+//                   console.log(`Cylinder ${i} - Start:`, start);
+//                   console.log(`Cylinder ${i} - End:`, end);
+//
+//                   // 计算方向和长度
+//                   const direction = Cesium.Cartesian3.subtract(end, start, new Cesium.Cartesian3());
+//                   const length = Cesium.Cartesian3.magnitude(direction);
+//                   const midpoint = Cesium.Cartesian3.midpoint(start, end, new Cesium.Cartesian3());
+//                   const normalizedDirection = Cesium.Cartesian3.normalize(direction, new Cesium.Cartesian3());
+//
+//                   console.log(`Cylinder ${i} - Midpoint:`, midpoint);
+//                   console.log(`Cylinder ${i} - Direction:`, direction);
+//                   console.log(`Cylinder ${i} - Length:`, length);
+//                   console.log(`Cylinder ${i} - Normalized Direction:`, normalizedDirection);
+//
+//                   if (isNaN(normalizedDirection.x) || isNaN(normalizedDirection.y) || isNaN(normalizedDirection.z)) {
+//                     throw new Error(`Cylinder ${i} - Normalized direction contains NaN values`);
+//                   }
+//
+//                   // 计算Heading, Pitch, Roll
+//                   const heading = Math.atan2(normalizedDirection.y, normalizedDirection.x);
+//                   const pitch = Math.asin(normalizedDirection.z);
+//                   const roll = 0.0;
+//
+//                   const hpr = new Cesium.HeadingPitchRoll(heading, pitch, roll);
+//                   const orientation = Cesium.Transforms.headingPitchRollQuaternion(midpoint, hpr);
+//
+//                   // 创建圆柱实体
+//                   viewer.entities.add({
+//                     position: midpoint,
+//                     orientation: orientation,
+//                     cylinder: {
+//                       length: length,
+//                       topRadius: 0.5, // 顶部半径
+//                       bottomRadius: 0.5, // 底部半径
+//                       material: color
+//                     }
+//                   });
+//                 }
+//               })
+//               .catch(error => {
+//                 console.error("Error creating cylinders:", error);
+//               });
+//     });
+//     Promise.all(promises).then(() => {
+//       viewer.flyTo(viewer.entities, {
+//         duration: 2.0, // 持续时间，单位为秒
+//         maximumHeight: 500, // 设置最大高度，可以根据需要调整
+//         pitchAdjustHeight: 300, // 设置相机俯仰调整高度，可以根据需要调整
+//         easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT // 使用二次缓动函数
+//       });
+//     });
+//
+//   })
     // 加载GeoJSON数据并显示
     // viewer.dataSources.add(Cesium.GeoJsonDataSource.load(geojson));
 
 
+  // 初始化时更新标签
+  // hideValues();
   window.onload = function() {
     const now = new Date();
     const dateInput = document.getElementById('date-picker');
     const timeSlider = document.getElementById('time-slider');
+    // const timeSlider_second = document.getElementById('time-slider-second');
     const timeDisplay = document.getElementById('time-display');
     const resetButton = document.getElementById("reset-button");
-
+    var slider = document.getElementById('time-slider-second');
+    var leftLabel = document.getElementById('left-label');
+    var rightLabel = document.getElementById('right-label');
+    var mode_btn = document.getElementById('mode-button');
     dateInput.value = now.toISOString().split('T')[0];
     updateTimeSlider(now);
 
@@ -164,11 +231,15 @@
       timeSlider.value = Math.floor(currentMinutes / 10);
       updateCesiumClock();
     }
+
     const updateTime = () => {
       let minutes = timeSlider.value * 10;
       let hours = Math.floor(minutes / 60);
       minutes = minutes % 60;
-      timeDisplay.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      let minutesFormatted = minutes === 0 ? '00' : minutes.toString().padStart(2, '0');
+      timeDisplay.textContent = `${hours.toString().padStart(2, '0')}:${minutesFormatted}`;
+      console.log(`${hours.toString().padStart(2, '0')}:${minutesFormatted}`)
+
     };
 
     const resetTime = () => {
@@ -181,61 +252,88 @@
       updateTime();
       updateCesiumClock();
     };
+    function setmode() {
+      this.classList.toggle('blue');
+      if (simulation_mode===true){
+        simulation_mode=false
+      }else {
+        simulation_mode=true
+      }
 
+    };
+    function updateWeight() {
+
+      let sliderValue = parseFloat(slider.value);
+      leftLabel.textContent = (1 - sliderValue).toFixed(2); // 显示滑块值，保留两位小数
+      rightLabel.textContent = (sliderValue).toFixed(2); // 显示1 - 滑块值，保留两位小数
+    }
+
+    function showValues() {
+      updateWeight();
+    }
+
+    function hideValues() {
+      leftLabel.textContent = 'Shade';
+      rightLabel.textContent = 'Shortest';
+    }
     function updateCesiumClock() {
       const selectedDate = new Date(dateInput.value);
       const sliderValue = parseInt(timeSlider.value);
       const hours = Math.floor(sliderValue * 10 / 60);
+
       const minutes = (sliderValue * 10) % 60;
       selectedDate.setHours(hours, minutes, 0);
 
       viewer.clock.currentTime = Cesium.JulianDate.fromDate(selectedDate);
       viewer.clock.shouldAnimate = true;
 
-      timeDisplay.textContent = `${hours}:${minutes}`;
+      timeDisplay.textContent = `${hours}:${minutes.toString().padStart(2, '0')}`;
     }
     resetButton.addEventListener("click", resetTime);
+    mode_btn.addEventListener("click", setmode);
+    slider.addEventListener('input', updateWeight);
+    slider.addEventListener('mousedown', showValues);
+    slider.addEventListener('mouseup', hideValues);
   };
-  document.getElementById('calculate').addEventListener('click', function() {
+  // document.getElementById('calculate').addEventListener('click', function() {
 
 
 
-    main(click_point)
+    // main(click_point)
 
-  });
-  async function point_cartesian(each_point_ori) {
-    async function convertToCartesianWithTerrain(terrainProvider, position, ellipsoid) {
-      // 使用 Cesium.sampleTerrain 获取地面高度的经纬度位置
-      const updatedPositions = await Cesium.sampleTerrain(terrainProvider, 13, [position]);
+  // });
+  async function point_cartesian(point_list) {
+    var ellipsoid = viewer.scene.globe.ellipsoid;
+    var positions = point_list.map(each_point_ori =>
+            Cesium.Cartographic.fromDegrees(each_point_ori[0], each_point_ori[1])
+    );
 
-      // 将更新后的经纬度位置转换为笛卡尔坐标
-      const cartesianPosition = ellipsoid.cartographicToCartesian(updatedPositions[0]);
+    await Cesium.sampleTerrain(viewer.terrainProvider, 13, positions).then(function(updatedPositions) {
+      updatedPositions.forEach((updatedPos, index) => {
+        var cartesian3 = ellipsoid.cartographicToCartesian(updatedPos);
+        // var each_point = {'position': viewer.scene.cartesianToCanvasCoordinates(cartesian3)};
+        add_round(cartesian3,1)
+        // calculate_normal(each_point, cartesian3, mode)
+        // reflect_list.push(reflect);
+      });
 
-      return cartesianPosition;
-    }
+      // console.log(reflect_list.length);2
 
-    // 调用示例
-    const terrainProvider = viewer.terrainProvider;
-    const position = Cesium.Cartographic.fromDegrees(each_point_ori[0], each_point_ori[1]);
-    const ellipsoid = Cesium.Ellipsoid.WGS84;
-
-    const cartesianPosition = await convertToCartesianWithTerrain(terrainProvider, position, ellipsoid);
-    console.log(cartesianPosition);
-
-    return getSunDirection(cartesianPosition);
+    });
   }
-  async function main(click_point) {
+  async function main(click_points) {
     const date = document.getElementById('date-picker').value;
     const timeSlider = document.getElementById('time-slider');
+    const weightSlider_value = document.getElementById('time-slider-second').value;
     const hours = Math.floor(timeSlider.value * 10 / 60);
     const minutes = (timeSlider.value * 10) % 60;
     const time_str=`${hours}:${minutes}`
-    const sample_point=[11.5745611, 48.1443432]
-    let sun_vec=await point_cartesian(sample_point)
-    // console.log(sun_vec,'sun_vec');
-    console.log(`选定时间: ${hours}:${minutes}`);
+    // const sample_point=[11.5745611, 48.1443432]
 
-    fetch_data({'date':date,'time':time_str,'sun_vec':sun_vec,'click_points':click_point})
+    // console.log(sun_vec,'sun_vec');
+    // console.log(`选定时间: ${hours}:${minutes}`);
+
+    fetch_data({'date':date,'time':time_str,'click_points':click_points,'weight':weightSlider_value})
 
   }
 
@@ -261,6 +359,7 @@
 
   function fetch_data(result){
     console.log(result,'result')
+    loader.style.display = 'block';
     fetch('/get-time', {
       method: 'POST', // 设置请求方法为 POST
       headers: {
@@ -275,26 +374,34 @@
               const promises = features.map(feature => {
                 const coordinates = feature.geometry.coordinates[0];
                 const positions = coordinates.map(coord => Cesium.Cartographic.fromDegrees(coord[0], coord[1]));
-
+                loader.style.display = 'none';
                 return Cesium.sampleTerrain(viewer.terrainProvider, 13, positions)
                         .then(updatedPositions => {
                           const shade = feature.properties.shade;
                           const color = getColorFromShade(shade)
-                          return viewer.entities.add({
+                          const result_line=viewer.entities.add({
                             polyline: {
                               positions: Cesium.Cartesian3.fromDegreesArrayHeights(
                                       updatedPositions.flatMap(pos => [Cesium.Math.toDegrees(pos.longitude), Cesium.Math.toDegrees(pos.latitude), pos.height])
                               ),
-                              width: 5,
+                              width: 25,
                               material: color
                             }
                           });
+                          result_lines.push(result_line)
+                          // result_lines.push(shadowLine)
                         });
               });
 
               Promise.all(promises).then(() => {
-                viewer.zoomTo(viewer.entities);
+                viewer.flyTo(viewer.entities, {
+                  duration: 2.0, // 持续时间，单位为秒
+                  maximumHeight: 500, // 设置最大高度，可以根据需要调整
+                  pitchAdjustHeight: 300, // 设置相机俯仰调整高度，可以根据需要调整
+                  easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT // 使用二次缓动函数
+                });
               });
+
             })
             .catch(error => console.error('Error:', error)); // 捕捉并处理任何在请求过程中出现的错误
 
@@ -344,6 +451,11 @@
 
     var date = viewer.clock.currentTime
 
+    // 根据经纬度和高度创建点的位置
+    var pointPosition = cartesian;
+
+    // 计算太阳位置
+// 使用Cesium内置的太阳位置计算功能
     var sunPosition = new Cesium.Cartesian3();
     Cesium.Simon1994PlanetaryPositions.computeSunPositionInEarthInertialFrame(date,sunPosition);
     // var sunPositionCartesian = Cesium.Cartesian3.fromArray(sunPosition);
@@ -352,6 +464,8 @@
 // 使用转换矩阵将太阳位置从TEME转换到ECEF
     var sunPositionECEF = Cesium.Matrix3.multiplyByVector(temeToPseudoFixedMatrix, sunPosition, new Cesium.Cartesian3());
 
+    // console.log(cartesian,sunPositionECEF,"date")
+    // 计算从点位置指向太阳的向量
     var sunDirection= calculateDirectionVector(cartesian,sunPositionECEF)
 
     return sunDirection;
@@ -374,34 +488,23 @@
   //
   //   }
   // }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-  async function isSunBlockedByModel(viewer, pointPosition, direction) {
-    // 确保点位置和方向是Cesium.Cartesian3实例
+  function isSunBlockedByModel(viewer, pointPosition,direction) {
 
-    // 规范化方向向量
     Cesium.Cartesian3.normalize(direction, direction);
 
     // 创建射线
     var ray = new Cesium.Ray(pointPosition, direction);
+    var startPoint = pointPosition;
 
+// 定义方向向量（在这个例子中，我们假设这个向量已经是规范化的）
+// 注意：这里的方向向量是一个笛卡尔坐标系中的向量，不是经纬度
+// 根据需要缩放方向向量（例如，将其长度扩大10000米）
+// add_vector(startPoint,direction,"RED")
     // 使用射线检测是否与场景中的3D模型相交
     var result = viewer.scene.pickFromRay(ray);
 
-    // 如果result不是undefined，说明射线与某个模型相交
-    if (result && result.position) {
-      // 计算从射线起点到相交点的距离
-      // var distance = Cesium.Cartesian3.distance(pointPosition, result.position);
-      // var feature = result.object;
-      // console.log(feature)
-
-      // 尝试从特征的属性中获取建筑物的高度
-      // var buildingHeight = feature.getProperty('height');
-      // console.log(buildingHeight,'buildingHeight')
-      // console.log(distance,'distance')
-      return true;
-    }
-
-    // 如果没有相交，或者result中没有位置信息，返回undefined
-    return false;
+    // 如果result不是undefined，说明射线与某个模型相交，即视线被遮挡
+    return result !== undefined;
   }
 
   let globalPageX = 0;
@@ -439,13 +542,13 @@ function show_lines(){
     }
   });
   function add_vector(startPoint,direction,color_str){
-    var scaledDirectionVector = Cesium.Cartesian3.multiplyByScalar(direction, 20, new Cesium.Cartesian3());
+    var scaledDirectionVector = Cesium.Cartesian3.multiplyByScalar(direction, 10, new Cesium.Cartesian3());
 
 // 计算终点坐标
     var endPoint = Cesium.Cartesian3.add(startPoint, scaledDirectionVector, new Cesium.Cartesian3());
 
 // 使用Polyline添加一条线来表示向量
-    viewer.entities.add({
+    let lines=viewer.entities.add({
       polyline: {
         positions: [startPoint, endPoint],
         width: 2,
@@ -454,11 +557,12 @@ function show_lines(){
         arcType: Cesium.ArcType.NONE // 确保线段直接连接起点和终点
       }
     });
+    lines_list.push(lines)
     // 使用射线检测是否与场景中的3D模型相交
 
   }
   async function add_round(startPoint,value){
-    console.log('round')
+    console.log('round',startPoint)
 
     var color = Cesium.Color.fromBytes(255 * value, 0, 255 * (1 - value));
 
@@ -466,25 +570,21 @@ function show_lines(){
     var circle = viewer.entities.add({
       position: startPoint,
       ellipse: {
-        semiMinorAxis: 2, // 半径20米
-        semiMajorAxis:2, // 半径20米
+        semiMinorAxis: 20, // 半径20米
+        semiMajorAxis:20, // 半径20米
         material: color // 使用计算得到的颜色
+      },properties: {
+        groupId: 'round'
       }
     });
     circles.push(circle)
   }
-  async function caculate_point_list(point_list,intensity_list,mode){
-
-    circles.forEach(circle => {
-      if (circle && viewer.entities.contains(circle)) {
-        viewer.entities.remove(circle);
-      } else {
-        // console.log("Circle not found or already removed");
-      }
-    });
 
 
+async function create_round(longitude,latitude){
 
+    let point_list=[[longitude,latitude]]
+    console.log(point_list)
 
     var ellipsoid = viewer.scene.globe.ellipsoid;
     var positions = point_list.map(each_point_ori =>
@@ -494,90 +594,50 @@ function show_lines(){
     await Cesium.sampleTerrain(viewer.terrainProvider, 13, positions).then(function(updatedPositions) {
       updatedPositions.forEach((updatedPos, index) => {
         var cartesian3 = ellipsoid.cartographicToCartesian(updatedPos);
-        // var each_point = {'position': viewer.scene.cartesianToCanvasCoordinates(cartesian3)};
-        add_round(cartesian3,intensity_list[index])
-        // calculate_normal(each_point, cartesian3, mode)
-        // reflect_list.push(reflect);
+        add_round(cartesian3,1)
       });
+    });
 
-      // console.log(reflect_list.length);2
+}
+  function deleteGroup(circles) {
 
+    console.log(circles.length)
+
+    circles.forEach(entity => {
+      viewer.entities.remove(entity);
     });
   }
-  function calculateLightIntensity(distance, I0) {
-    const result=(I0/2) * ( (distance) ** 2);
-    // console.log(I0,result)
-    return result;
-
-  }
-
-  async function calculate_normal(movement,cartesian_3,mode){
-    let lightIntensity
-    if (cartesian_3===''){
-      var cartesian = viewer.scene.pickPosition(movement.position);
+  viewer.screenSpaceEventHandler.setInputAction(function (click) {
+    // Get the picked object
+    if (simulation_mode===true){
+      let current_time=Number(document.getElementById('time-slider').value)
+      console.log(current_time,'time')
+      draw_diagram(click,current_time)
     }else {
-      var cartesian = cartesian_3
-
-    }
-
-    //
-    // console.log(cartesian,'cartesian')
-    if (Cesium.defined(cartesian)) {
 
 
+    var cartesian = viewer.scene.pickPosition(click.position);
 
-      // 如果没有相交，或者result中没有位置信息，返回undefined
-      lightIntensity=1
-// 计算光照强度
-
-
-      // console.log(cartesian,sunDirection)
-      // object_list.push(convertCartesianToEPSG25832(cartesian),Object.values(sunDirection))
-      // add_vector(cartesian,sunDirection,Cesium..Color.RED)
-      // console.log(cartesian)
-      if (mode=="show"){
-        add_round(cartesian,lightIntensity)
-      }
-
-      // console.log('finished')
-
-      // console.log("Light Intensity:", lightIntensity);
-      return lightIntensity
-
-
-
-    }
-  }
-
-  handler.setInputAction(function(movement) {
-    var cartesian = viewer.scene.pickPosition(movement.position);
-    add_round(cartesian,1)
-
-    // 检查是否有效
-    if (Cesium.defined(cartesian)) {
-      // 将 Cartesian3 坐标转换为地理坐标（经纬度）
+    if (cartesian) {
+      // Convert world coordinates to latitude/longitude
       var cartographic = Cesium.Cartographic.fromCartesian(cartesian);
-
-      // 获取经度和纬度（单位为弧度），将其转换为度
       var longitude = Cesium.Math.toDegrees(cartographic.longitude);
       var latitude = Cesium.Math.toDegrees(cartographic.latitude);
-      click_point.push(longitude,latitude)
-      if (click_point.length===2){
-        main(click_point)
-        click_point=[]
-        const oldContainer = document.getElementById('canvasContainer');
-        if (oldContainer) {
-          document.body.removeChild(oldContainer);
-        }
+      var height = cartographic.height;
+      create_round(longitude,latitude).then(result=>{
+        click_point.push([longitude,latitude])
+        if (click_point.length===2){
+          main(click_point)
+          click_point=[]
+          deleteGroup(circles)
+          deleteGroup(result_lines)
+          // console.log(latitude + ',' + longitude);
       }
+      })
+      // Display the coordinates
 
-      // 调用 draw_diagram 函数，并传递经纬度信息
-      draw_diagram(movement, '', 'show');
-    }
-
-
+    }}
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
   viewer.scene.globe.enableLighting = true
   viewer.shadows = true
   viewer.terrainShadows = Cesium.ShadowMode.RECEIVE_ONLY
@@ -587,19 +647,30 @@ function show_lines(){
   // const buildingTileset = await Cesium.createOsmBuildingsAsync();
   var tileset1 = await Cesium.Cesium3DTileset.fromIonAssetId(2492727);
   viewer.scene.primitives.add(tileset1);
-
+  tileset1 = await Cesium.Cesium3DTileset.fromIonAssetId(2577813);
+  viewer.scene.primitives.add(tileset1);
+  viewer.scene.globe.depthTestAgainstTerrain = true;
   // 添加第二个 tileset
-  var imageryProvider2 = await Cesium.IonImageryProvider.fromAssetId(4);
-  viewer.imageryLayers.addImageryProvider(imageryProvider2);
+  Cesium.IonImageryProvider.fromAssetId(4).then(function(imageryProvider2) {
+    var imageryLayer = viewer.imageryLayers.addImageryProvider(imageryProvider2);
+
+    // 调整影像图层颜色
+    imageryLayer.alpha = 1; // 设置透明度
+    imageryLayer.brightness = 1; // 设置亮度
+    imageryLayer.contrast = 1; // 设置对比度
+    imageryLayer.hue = 0.5; // 设置色调
+    imageryLayer.saturation = 0.3; // 设置饱和度
+    imageryLayer.gamma = 0.8; // 设置伽马值
+  });
   let baseTime = new Date();
-  function createTimeSeries(list) {
+  function createTimeSeries(list,current_time) {
     const totalMinutes = 24 * 60; // 一天总共有1440分钟
     const interval = totalMinutes / list.length; // 根据列表长度计算时间间隔
     let timeSeries = [];
 
     for (let i = 0; i < list.length; i++) {
       // 计算每个时间点，从中午12点开始
-      const minutes = Math.round(interval * i) + 720; // 在这里加720使起点为12:00
+      const minutes = Math.round(interval * i) +current_time * 10; // 在这里加720使起点为12:00
       const wrappedMinutes = minutes % totalMinutes; // 确保时间不会超过一天的分钟数
       const hours = Math.floor(wrappedMinutes / 60);
       const mins = wrappedMinutes % 60;
@@ -611,34 +682,231 @@ function show_lines(){
     console.log(timeSeries)
     return timeSeries;
   }
+  function draw_diagram(intersects,current_time){
 
-  function updateLightAngle(angle_num) {
-    let minutesToAdd = angle_num;
-    let newTime = new Date(baseTime.getTime());
-    newTime.setMinutes( minutesToAdd*10);
-
-    let cesiumTime = Cesium.JulianDate.fromDate(newTime);
-    viewer.clock.currentTime = cesiumTime;
-  }
-  async function draw_diagram(intersects,cartesian3,mode){
-    // console.log('finish')
     // console.log('光线反射值:', reflectance);
+    deleteGroup(lines_list)
     let light_list=[]
     let reflectance=0
     const step = 2; // 或根据需要调整
-    let currentValue=0
+    let currentValue = 0;
+    let baseIntervalTime = 10; // 初始时间间隔（毫秒）
+    let maxValue = 144;
+    let scaleFactor = 0.95; // 每次减少时间间隔的比例
 
-    // let intersect_judge=
-    // updateLightAngle(currentValue)
-    await calculate_normal(intersects, cartesian3, mode)
-    // console.log(reflectance,'reflectance')
-    // return reflectance
-    // slider.value = currentValue; // 更新滑块的值
-    // console.log(`Current slider value: ${currentValue}`); // 在控制台输出当前值
+// 设置间隔时间（毫秒）
+    let intervalTime = 10; // 每100毫秒移动一次
 
+// 创建一个定时器，逐步增加滑块的值
+    const interval = setInterval(() => {
+      // 增加当前值
+      currentValue += step;
+      // document.getElementById('time-slider').value=currentValue
+
+      // 检查是否达到最大值
+      if (currentValue > parseInt(144)) {
+        console.log('stop interval')
+        // console.log(`Reached max value: ${slider.max}`);
+        clearInterval(interval); // 停止定时器
+        // console.log(light_list)
+
+
+        // 创建新的容器
+        var container = document.createElement('div');
+        container.id = 'canvasContainer';
+        container.style.width = '300px';
+        container.style.height = '230px';
+        container.style.position = 'absolute';
+        container.style.left = globalPageX + 'px';
+        container.style.top = globalPageY + 'px';
+        container.style.zIndex = '999';
+        container.style.backgroundColor = 'rgba(255, 255, 255, 0.2);'; // 半透明黑色背景
+        container.style.backdropFilter = 'blur(10px)'; // 磨砂玻璃效果
+        container.style.webkitBackdropFilter = 'blur(10px)'; // 为了兼容性，添加webkit前缀
+        container.style.transition = 'opacity 1s ease-in-out'; // 设置渐入渐出过渡效果
+        container.style.opacity = '0'; // 初始透明度为0
+        container.style.borderRadius = '25px'; // 设置圆角矩形
+        container.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.3)'; // 添加阴影
+        container.style.color = 'white'; // 设置文字颜色为白色
+        setTimeout(function() {
+          container.style.opacity = '1';
+        }, 50);
+
+// 渐出效果（例如3秒后消失）
+
+        // 创建新的Canvas元素
+        var canvas = document.createElement('canvas');
+        canvas.id = 'dynamicCanvas';
+
+        container.appendChild(canvas);
+        document.body.appendChild(container);
+
+        // var ctx = canvas.getContext('2d');
+        var ctx = canvas.getContext('2d');
+        // var light_list = [/* 数据列表 */];
+        // var current_time = /* 当前时间 */;
+        var gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
+// 调整颜色停靠点的位置，使高数值颜色显示的区域更多
+        gradient.addColorStop(0.4, '#FDDE55'); // 高数值颜色，显示更多区域
+        gradient.addColorStop(1, '#03AED2'); // 低数值颜色
+// 创建一个线性渐变
+        let nor_light_list=normalizeList(light_list)
+        var myChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: createTimeSeries(nor_light_list, current_time),
+            datasets: [{
+              label: 'Light strength',
+              data: nor_light_list,
+              fill: false,
+              borderColor: gradient, // 使用渐变颜色
+              tension: 0.1
+            }]
+          },
+          options: {
+            maintainAspectRatio: false,
+            responsive: true,
+            scales: {
+              x: {
+                ticks: {
+                  color: 'white' // 设置x轴刻度标签颜色为白色
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.3)' // 设置x轴网格线颜色为白色
+                }
+              },
+              y: {
+                display: true, // 隐藏纵轴
+                beginAtZero: true,
+                ticks: {
+                  color: 'white' // 设置y轴刻度标签颜色为白色
+                },
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.3)' // 设置y轴网格线颜色为白色
+                }
+              }
+            },
+            plugins: {
+              title: {
+                display: false,
+                // text: 'Light Strength', // 设置标题文本
+                // color: 'white' // 设置标题颜色为白色
+              },
+              legend: {
+                labels: {
+                  color: 'white' // 设置图例标签颜色为白色
+                }
+              }
+            }
+          }
+        });
+      } else {
+
+        // let intersect_judge=
+        updateLightAngle(currentValue,current_time)
+        reflectance=calculate_normal(intersects)
+        light_list.push(reflectance)
+        // slider.value = currentValue; // 更新滑块的值
+        // console.log(`Current slider value: ${currentValue}`); // 在控制台输出当前值
+      }
+      // intervalTime = Math.max(baseIntervalTime * Math.pow(scaleFactor, currentValue / step), 1);
+
+      // 清除当前的间隔，并设置新的间隔时间
+      // clearInterval(interval);
+      // setInterval(interval, intervalTime);
+
+    }, intervalTime);
+  }
+  function normalizeList(data) {
+    const minVal = Math.min(...data);
+    const maxVal = Math.max(...data);
+
+    // 如果最大值和最小值相同，直接返回全0数组
+    if (maxVal === minVal) {
+      return data.map(() => 0);
+    }
+
+    return data.map(x => (x - minVal) / (maxVal - minVal));
+  }
+  function calculate_normal(movement){
+    var cartesian = viewer.scene.pickPosition(movement.position);
+    if (Cesium.defined(cartesian)) {
+      // 计算法向量，即位置向量的标准化
+      var screenP0 = movement.position;
+      var screenP1 = new Cesium.Cartesian2(movement.position.x, movement.position.y - 15);
+      var screenP2 = new Cesium.Cartesian2(movement.position.x - 15, movement.position.y);
+
+// get the cartesian coordinates for each of them
+      var P0 = viewer.scene.pickPosition(screenP0);
+      var P1 = viewer.scene.pickPosition(screenP1);
+      var P2 = viewer.scene.pickPosition(screenP2);
+
+// calculate the Normal Vector by Cesium.Cartesian3.cross()
+      var vec1 = Cesium.Cartesian3.subtract(P1, P0, new Cesium.Cartesian3());
+      var vec2 = Cesium.Cartesian3.subtract(P2, P0, new Cesium.Cartesian3());
+      var surfaceNormal = Cesium.Cartesian3.cross(vec1, vec2, new Cesium.Cartesian3());
+      // console.log("Surface Normal: ", surfaceNormal);
+      add_vector(cartesian,surfaceNormal,Cesium.Color.BLUE)
+      // 如果需要，转换法向量为经纬度表示
+      // var normalCartographic = ellipsoid.cartesianToCartographic(surfaceNormal);
+      // console.log("Normal in Lat/Lon: ", Cesium.Math.toDegrees(normalCartographic.latitude), Cesium.Math.toDegrees(normalCartographic.longitude));
+      var sunDirection = getSunDirection(cartesian); // 使用上面提供的函数获取太阳方向
+      // var surfaceNormal = new Cesium.Cartesian3(0, 0, 1); // 假设平面法线朝上
+      add_vector(cartesian,sunDirection,Cesium.Color.RED)
+// 计算光照强度
+      var isblock=isSunBlockedByModel(viewer,cartesian,sunDirection)
+      // console.log(isblock)
+      if (!isblock){
+        var lightIntensity = Math.max(Cesium.Cartesian3.dot(surfaceNormal, sunDirection), 0);
+
+      }else {
+        // console.log("block")
+        lightIntensity=0
+      }
+      // console.log("Light Intensity:", lightIntensity);
+      return lightIntensity
+
+
+
+    }
+  }
+  function time_144(cesiumTime){
+    if (cesiumTime>144){
+      return cesiumTime-144
+    }else {
+      return cesiumTime
+    }
+  }
+  function updateLightAngle(angle_num,current_time) {
+    let minutesToAdd = angle_num;
+    let newTime = new Date(baseTime.getTime());
+
+    let desiredHours = Math.floor(current_time / 6);
+    let desiredMinutes = (current_time % 6) * 10;
+    newTime.setHours(desiredHours);
+    newTime.setMinutes(desiredMinutes);
+    newTime.setMinutes( minutesToAdd*10);
+    // console.log(newTime,'newTime')
+    let cesiumTime = Cesium.JulianDate.fromDate(newTime);
+    viewer.clock.currentTime = cesiumTime;
+    let slider_value=time_144(current_time+angle_num)
+
+    // console.log(slider_value,angle_num,current_time)
+    document.getElementById('time-slider').value=slider_value
+
+    let hours = Math.floor(slider_value / 6);
+    let minutes = (slider_value % 6) * 10;
+
+    // 格式化小时和分钟为两位数
+    let hoursStr = hours.toString().padStart(2, '0');
+    let minutesStr = minutes.toString().padStart(2, '0');
+
+    // 返回格式化的时间字符串
+    document.getElementById('time-display').textContent = `${hoursStr}:${minutesStr}`;
+
+    // document.getElementById('time-display').textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 
   }
-
   // Fly the camera to San Francisco at the given longitude, latitude, and height.
   viewer.camera.flyTo({
     destination: Cesium.Cartesian3.fromDegrees(11.572176066553844, 48.13941501948902, 900),

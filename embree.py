@@ -3,7 +3,7 @@ import numpy as np
 import trimesh
 from get_sun_direction import calculate_sunray_direction_vector
 # load a file by name or from a buffer
-mesh = trimesh.load_mesh(r"q.obj")
+mesh = trimesh.load_mesh(r"Munich_center_9_tiles.obj")
 from pyproj import Transformer
 transformer = Transformer.from_crs("EPSG:4326", "EPSG:25832")
 

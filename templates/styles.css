@@ -6,7 +6,7 @@ body {
     height: 100vh;
     background: #f0f0f0;
     margin: 0;
-    padding: 20px; /* 设置容器内部的填充（间距）为20px */
+    /*padding: 20px; !* 设置容器内部的填充（间距）为20px *!*/
 }
 
 .container {
@@ -68,7 +68,27 @@ body {
     right: 22px; /* 设置元素左边距为10px */
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* 添加阴影 */
 }
+#mode-button {
+    border-radius: 25px; /* 边角稍微圆滑，但不是完全的圆形 */
+    background: rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    padding: 5px 10px; /* 适应内容的内边距 */
+    border: 1px solid #ccc;
+    align-items: center;
+    color: white;
+    position: absolute;
+    right: 60px; /* 设置元素右边距为60px */
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* 添加阴影 */
+    min-width: 30px; /* 最小宽度为30px，确保其小尺寸情况下的形状 */
+    min-height: 30px; /* 最小高度为30px，确保其小尺寸情况下的形状 */
+    transition: background 0.5s ease-in-out; /* 添加背景颜色变化的过渡效果，持续时间1s，非线性 */
+}
 
+#mode-button.blue {
+    background: rgba(0, 0, 255, 0.5); /* 变为蓝色 */
+}
 .slider-container {
     display: flex;
     align-items: center;

@@ -8,9 +8,10 @@ document.addEventListener("DOMContentLoaded", () => {
         let minutes = timeSlider.value * 10;
         let hours = Math.floor(minutes / 60);
         minutes = minutes % 60;
-        timeDisplay.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    };
+        let minutesFormatted = minutes === 0 ? '00' : minutes.toString().padStart(2, '0');
+        timeDisplay.textContent = `${hours.toString().padStart(2, '0')}:${minutesFormatted}`;
 
+    };
     const resetTime = () => {
         const now = new Date();
         datePicker.value = now.toISOString().split('T')[0];
@@ -20,7 +21,9 @@ document.addEventListener("DOMContentLoaded", () => {
         timeSlider.value = Math.round(totalMinutes / 10);
         updateTime();
     };
-
+    document.getElementById('mode-button').addEventListener('click', function() {
+        this.classList.toggle('blue');
+    });
     resetTime();
     timeSlider.addEventListener("input", updateTime);
     resetButton.addEventListener("click", resetTime);

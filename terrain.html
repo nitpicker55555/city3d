@@ -113,25 +113,7 @@
     console.log(cartesian,sunPositionECEF,"date")
     // 计算从点位置指向太阳的向量
     var sunDirection= calculateDirectionVector(cartesian,sunPositionECEF)
-    //
-    // Cesium.Cartesian3.subtract(sunPositionECEF, pointPosition, sunDirection);
-    // Cesium.Cartesian3.normalize(sunDirection, sunDirection);
-    // var startPoint = Cesium.Cartesian3.fromDegrees(pointPosition);
-    // var endPoint = Cesium.Cartesian3.fromDegrees(sunPosition);
 
-// 使用Polyline添加一条线来表示向量
-//     add_vector(cartesian,sunDirection,Cesium.Color.WHITE)
-//     var vectorLine = viewer.entities.add({
-//       polyline: {
-//         positions: [pointPosition, sunPositionECEF],
-//         width: 2,
-//         material: Cesium.Color.WHITE, // 可以根据需要调整线的颜色
-//         arcType: Cesium.ArcType.NONE // 确保线段直接连接起点和终点
-//       }
-//     });
-
-    // viewer.zoomTo(viewer.entities);
-    // console.log("Sun Direction at Location:", sunDirection);
     return sunDirection;
   }
   // 监听鼠标左键点击事件
@@ -152,14 +134,7 @@
   //   }
   // }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
   function isSunBlockedByModel(viewer, pointPosition,direction) {
-    // 确保点位置和太阳位置是Cesium.Cartesian3实例
 
-
-    // 根据经纬度和高度创建点的位置
-    // 计算太阳位置
-
-
-    // 规范化方向向量
     Cesium.Cartesian3.normalize(direction, direction);
 
     // 创建射线

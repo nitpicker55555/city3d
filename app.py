@@ -2,6 +2,16 @@ from flask import Flask, render_template, jsonify, request
 import json
 from get_sun_direction import calculate_sunray_direction_vector
 from embree import cal_intensity
+
+
+from flask import Flask, render_template, jsonify, request
+import psycopg2
+from shapely import wkb, wkt
+from geojson import Feature, FeatureCollection
+import geojson
+from shapely.geometry import LineString, Point
+
+
 app = Flask(__name__)
 data_ori = [
     [
@@ -32718,13 +32728,17 @@ def read_geojson_points():
 
     return points_coordinates
 
+
 @app.route('/get-time', methods=['POST'])
 def get_time():
 
     data = request.get_json()
 
+
     time_str=data['key']['time']
     date_str=data['key']['date']
+    weight_int=data['key']['weight']
+    click_points=data['key']['click_points']
     # sun_vec=list(data['key']['sun_vec'].values())
     # print(sun_vec)
     # print(date_str,time_str)
@@ -32732,14 +32746,101 @@ def get_time():
     # sun_vec=[       0.6043474989780665,
     #         -0.7413328011100698,
     #         0.2918728806813915]
-    # print(sun_vec)
 
-    intensity_list=cal_intensity(sun_vec,data_ori)
-    geojson_content={
-        "type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577608, 48.141452], [11.577498, 48.141475], [11.577387, 48.141497], [11.577289, 48.141517], [11.577244, 48.141526], [11.577108, 48.141553], [11.576997, 48.141576], [11.576923, 48.141591]]]}, "properties": {"id": 218, "seq": 8, "shade": 0.6}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580447, 48.142648], [11.580475, 48.142639], [11.580497, 48.142624], [11.580511, 48.142606], [11.580516, 48.142585], [11.58051, 48.142565]]]}, "properties": {"id": 247, "seq": 29, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577414, 48.140425], [11.577403, 48.14049]]]}, "properties": {"id": 343, "seq": 2, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.57809, 48.140288], [11.577996, 48.140323], [11.577742, 48.140378], [11.577499, 48.140416], [11.577414, 48.140425]]]}, "properties": {"id": 344, "seq": 1, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580327, 48.142384], [11.579794, 48.142497]]]}, "properties": {"id": 363, "seq": 26, "shade": 0.6}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580815, 48.142506], [11.580718, 48.1423], [11.580327, 48.142384]]]}, "properties": {"id": 366, "seq": 27, "shade": 0.8}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.579794, 48.142497], [11.579737, 48.142379]]]}, "properties": {"id": 369, "seq": 25, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.578207, 48.142571], [11.578562, 48.142499]]]}, "properties": {"id": 397, "seq": 21, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.578207, 48.142571], [11.578265, 48.142693]]]}, "properties": {"id": 398, "seq": 20, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.578265, 48.142693], [11.578313, 48.142795]]]}, "properties": {"id": 402, "seq": 19, "shade": 0.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.578562, 48.142499], [11.57915, 48.142378]]]}, "properties": {"id": 403, "seq": 22, "shade": 0.4}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.579205, 48.142492], [11.579737, 48.142379]]]}, "properties": {"id": 408, "seq": 24, "shade": 0.4}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.579205, 48.142492], [11.57915, 48.142378]]]}, "properties": {"id": 409, "seq": 23, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577445, 48.140797], [11.577403, 48.14049]]]}, "properties": {"id": 558, "seq": 3, "shade": 0.33333333333333337}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577445, 48.140797], [11.577457, 48.140881]]]}, "properties": {"id": 559, "seq": 4, "shade": 0.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.576923, 48.141591], [11.576815, 48.141403]]]}, "properties": {"id": 571, "seq": 7, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577692, 48.141844], [11.577657, 48.141673], [11.577608, 48.141452]]]}, "properties": {"id": 572, "seq": 9, "shade": 0.6666666666666667}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.57756, 48.141259], [11.577497, 48.141032], [11.577457, 48.140881]]]}, "properties": {"id": 573, "seq": 5, "shade": 0.6666666666666667}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580815, 48.142506], [11.58051, 48.142565]]]}, "properties": {"id": 1008, "seq": 28, "shade": 0.6666666666666667}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580447, 48.142648], [11.580533, 48.142833]]]}, "properties": {"id": 1012, "seq": 30, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580533, 48.142833], [11.580149, 48.142913]]]}, "properties": {"id": 1013, "seq": 31, "shade": 0.33333333333333337}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.580151, 48.142973], [11.580157, 48.142943], [11.580149, 48.142913]]]}, "properties": {"id": 1016, "seq": 32, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577938, 48.142874], [11.577924, 48.142783], [11.577919, 48.142703]]]}, "properties": {"id": 1220, "seq": 17, "shade": 0.5}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577839, 48.142536], [11.577886, 48.142585], [11.577919, 48.142703]]]}, "properties": {"id": 1221, "seq": 16, "shade": 0.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577318, 48.142386], [11.577288, 48.142321]]]}, "properties": {"id": 1328, "seq": 12, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577414, 48.142586], [11.577371, 48.14249], [11.577318, 48.142386]]]}, "properties": {"id": 1330, "seq": 13, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577692, 48.141844], [11.577114, 48.141947]]]}, "properties": {"id": 1364, "seq": 10, "shade": 0.8}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577114, 48.141947], [11.577288, 48.142321]]]}, "properties": {"id": 1365, "seq": 11, "shade": 1.0}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.57756, 48.141259], [11.577467, 48.141288], [11.577371, 48.141302], [11.576897, 48.141388], [11.576815, 48.141403]]]}, "properties": {"id": 1433, "seq": 6, "shade": 0.5}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577938, 48.142874], [11.57817, 48.142825], [11.578273, 48.142803], [11.578313, 48.142795]]]}, "properties": {"id": 1668, "seq": 18, "shade": 0.6666666666666667}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577824, 48.142511], [11.577727, 48.142515], [11.577413, 48.142586]]]}, "properties": {"id": 2025, "seq": 14, "shade": 0.5}}, {"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": [[[11.577824, 48.142511], [11.577839, 48.142536]]]}, "properties": {"id": 2057, "seq": 15, "shade": 1.0}}]}
-    # print(intensity_list)
-    return jsonify({'lines':geojson_content}), 200
-    # return jsonify({'intensity': intensity_list,'data_ori':data_ori}), 200
+    # 1: no shade--> warmer, 0: in shade --> cooler
+    intensity_list = cal_intensity(sun_vec,data_ori)
+
+    # shade 和 distance 的权重比值
+    shade_weight = float(weight_int)
+    distance_weight =1-float(weight_int)
+
+    #选取的起点和终点的坐标
+    starting_point,ending_point  = click_points
+
+
+    try:
+        conn = psycopg2.connect(
+            dbname="postgis_34_sample",
+            user="postgres",
+            password="postgres",
+            host="localhost",
+            port="5432"
+        )
+        print("Connected to the database successfully!")
+
+        cursor = conn.cursor()
+
+        # 匹配输入坐标到最近的路网节点
+        start_node_query = f"SELECT id FROM sidewalk_noded_vertices_pgr ORDER BY the_geom <-> ST_SetSRID(ST_MakePoint(%s, %s), 4326) LIMIT 1;"
+        cursor.execute(start_node_query, (starting_point[0], starting_point[1]))
+        starting_node = cursor.fetchall()[0][0]
+
+        end_node_query = f"SELECT id FROM sidewalk_noded_vertices_pgr ORDER BY the_geom <-> ST_SetSRID(ST_MakePoint(%s, %s), 4326) LIMIT 1;"
+        cursor.execute(end_node_query, (ending_point[0], ending_point[1]))
+        ending_node = cursor.fetchall()[0][0]
+
+        print(starting_node, ending_node)
+        print('---------------')
+
+        # Iterate over the items and update shade values for intermediate points
+        for i in range(len(intensity_list)):
+            sql_statement = f"UPDATE intermediate_points SET shade_value = %s WHERE gid = %s;"
+            cursor.execute(sql_statement, (intensity_list[i], i + 1))
+
+        # Commit the changes
+        conn.commit()
+        print("Sampling values updated successfully!")
+
+        # Update the Sidewalk edge weights based on the shade value of intermediate points
+        update_edge_statement = "UPDATE sidewalk_noded AS edge SET sunlight_index = (SELECT AVG(node.shade_value) FROM intermediate_points AS node WHERE edge.source = node.source AND edge.target = node.target);"
+        cursor.execute(update_edge_statement)
+        conn.commit()
+        print('Sidewalk edge values updated successfully!')
+
+        # --------- TESTING ---------  for the edges when shade index is Null, update the values to 0.5 for testing
+        update_sql = "UPDATE sidewalk_noded SET sunlight_index = 0.5 WHERE sunlight_index IS NULL;"
+        cursor.execute(update_sql)
+        conn.commit()
+
+
+        # combined factor
+        customized_routing = "SELECT MIN(r.seq) AS seq,e.id AS id, sum(e.sunlight_index) AS distance, ST_Collect(e.the_geom) AS geom FROM pgr_dijkstra('SELECT id, source, target, (seg_length * %s + sunlight_index*%s) as cost FROM sidewalk_noded', %s, %s, false) AS r, sidewalk_noded AS e WHERE r.edge=e.id GROUP BY e.id"
+        cursor.execute(customized_routing, (shade_weight, distance_weight, starting_node, ending_node))
+        combined_route = cursor.fetchall()
+
+        # shadest route, 100% based on shade
+        shade_routing = "SELECT Min(r.seq) AS seq,e.id AS id, sum(e.sunlight_index) AS shade, ST_Collect(e.the_geom) AS geom FROM pgr_dijkstra('SELECT id, source, target, sunlight_index as cost FROM sidewalk_noded', %s, %s, false) AS r, sidewalk_noded AS e WHERE r.edge=e.id GROUP BY e.id"
+        cursor.execute(shade_routing, (starting_node, ending_node))
+        shadest_route = cursor.fetchall()
+        print('route generated successfully!')
+
+        # convert wkb to geometry
+        features = []
+        # route = shadest_route
+        route = combined_route
+        for row in route:
+            seq, id, sunlight, geom = row
+            # shades_list.append(shade)
+
+            geometry = wkb.loads(bytes.fromhex(geom))
+            feature = Feature(geometry=geometry.__geo_interface__,
+                              properties={"id": id, "seq": seq, "shade": 1 - sunlight})    # shade represents low temperature
+            features.append(feature)
+
+        feature_collection = FeatureCollection(features)
+
+
+        geojson_content = feature_collection
+        # print(intensity_list)
+        print(geojson_content)
+        return jsonify({'lines':geojson_content}), 200
+        # return jsonify({'intensity': intensity_list,'data_ori':data_ori}), 200
+        # cursor.close()
+        # conn.close()
+
+    except psycopg2.Error as e:
+        print("Unable to connect to the database:", e)
+
 @app.route('/send-data', methods=['POST'])
 def receive_data():
     data = request.get_json()
