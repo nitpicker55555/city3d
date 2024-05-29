@@ -8,7 +8,7 @@ from flask import Flask, render_template, jsonify, request
 import psycopg2
 from shapely import wkb, wkt
 from geojson import Feature, FeatureCollection
-import geojson
+
 from shapely.geometry import LineString, Point
 
 
@@ -32727,6 +32727,62 @@ def read_geojson_points():
                     points_coordinates.append(feature['geometry']['coordinates'])
 
     return points_coordinates
+
+def analyse_route(data):
+    import geopandas as gpd
+    from shapely.geometry import shape
+    import pyproj
+    from functools import partial
+    from shapely.ops import transform
+
+    # Load the GeoJSON file into a GeoDataFrame and set the CRS
+    gdf = gpd.read_file(file_path)
+    gdf = gdf.set_crs("EPSG:4326")
+
+    # Project to a metric CRS (e.g., EPSG:3857) for accurate distance calculations
+    gdf = gdf.to_crs("EPSG:3857")
+
+    # Initialize total distance and a dictionary to store distance for each shade value
+    total_distance = 0
+    shade_distances = {}
+
+    # Iterate through each feature in the GeoJSON file
+    for feature in data['features']:
+        # Get the geometry and the shade property
+        geom = shape(feature['geometry'])
+
+        # Transform the geometry to the metric CRS
+        project = partial(
+            pyproj.transform,
+            pyproj.Proj(init='epsg:4326'),
+            pyproj.Proj(init='epsg:3857')
+        )
+        metric_geom = transform(project, geom)
+
+        shade = feature['properties'].get('shade', 0)
+
+        # Calculate the length of the geometry
+        distance = metric_geom.length
+
+        # Add to total distance
+        total_distance += distance
+
+        # Add to the respective shade distance
+        if shade in shade_distances:
+            shade_distances[shade] += distance
+        else:
+            shade_distances[shade] = distance
+
+    # Calculate the proportion of the route for each shade value
+    shade_proportions = {shade: (distance / total_distance) for shade, distance in shade_distances.items()}
+
+    # Output the results
+    total_distance, shade_distances, shade_proportions
+
+    # # Output the results
+    # print(f"Total distance: {total_distance:.2f} units")
+    # for shade, distance in shade_distances.items():
+    #     print(f"Distance with shade {shade}: {distance:.2f} units, Proportion: {shade_proportions[shade]:.2%}")
 
 
 @app.route('/get-time', methods=['POST'])

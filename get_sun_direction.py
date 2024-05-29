@@ -33,7 +33,7 @@ def calculate_sunray_direction_vector(date_str, time_str, latitude=48.1443432, l
     x = np.cos(elevation_angle) * np.sin(azimuth)
     y = np.cos(elevation_angle) * np.cos(azimuth)
     z = np.sin(elevation_angle)
-    print(np.array([x, y, z]),'sun_vec',date_str,time_str,latitude,longitude)
+    # print(np.array([x, y, z]),'sun_vec',date_str,time_str,latitude,longitude)
     return np.array([x, y, z])
 
 # 测试函数
