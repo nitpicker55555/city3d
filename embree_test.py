@@ -1,8 +1,8 @@
 import time
 from get_sun_direction import calculate_sunray_direction_vector
-from embree import cal_intensity
-
-from sample_points_process import sample_points_from_obj
+# from embree import cal_intensity
+from data_process import *
+# from sample_points_process import sample_points_from_obj
 
 
 import numpy as np
@@ -37,18 +37,18 @@ date_str = '2024-05-14'
 time_str = '11:50'
 sun_vec = calculate_sunray_direction_vector(date_str, time_str)
 # print(sun_vec)
-vertices, faces=read_obj_file('q.obj')
+# vertices, faces=read_obj_file('q.obj')
 # list_=cal_intensity(sun_vec,data)
-dense_points = (sample_points_from_obj(vertices, faces, 20))
+# dense_points = data[:20]
 
 for i in range(20):
     # print(data[i])
 
-    # collect_origins.append([*convert(data_ori[i][0], data_ori[i][1]), data_ori[i][2]-45])
+    collect_origins.append([*convert(data_ori[i][0], data_ori[i][1]), data_ori[i][2]-45])
 
     collect_directions.append(sun_vec)
 
-ray_origins = np.array(dense_points)
+ray_origins = np.array(collect_origins)
 ray_directions = np.array(collect_directions)
 from embreex import rtcore_scene
 # run the mesh- ray query
