@@ -1,15 +1,22 @@
 import time
+import pandas as pd
+df = pd.read_csv(r'C:\Users\Morning\Downloads\munich_trans_facade_samples\munich_trans_facade_samples.csv')
+df['Floor'] = df['Floor'] * 2.4 + 502.5
+# 用列的均值替换NaN值
+
+
+selected_columns = df[['join_xcoor', 'join_ycoor', 'Floor']]
+line_list_data=selected_columns.values.tolist()
 from get_sun_direction import calculate_sunray_direction_vector
 # from embree import cal_intensity
 from data_process import *
 # from sample_points_process import sample_points_from_obj
 
-
 import numpy as np
 import trimesh
 
 # load a file by name or from a buffer
-mesh = trimesh.load_mesh(r"q.obj")
+mesh = trimesh.load_mesh(r"C:\Users\Morning\Downloads\Munich_center_9_tiles.obj")
 start_time = time.time()
 
 from pyproj import Transformer
@@ -41,15 +48,18 @@ sun_vec = calculate_sunray_direction_vector(date_str, time_str)
 # list_=cal_intensity(sun_vec,data)
 # dense_points = data[:20]
 
-for i in range(20):
+# for i in range(20):
     # print(data[i])
 
-    collect_origins.append([*convert(data_ori[i][0], data_ori[i][1]), data_ori[i][2]-45])
+    # collect_origins.append([*convert(data_ori[i][0], data_ori[i][1]), data_ori[i][2]-45])
 
-    collect_directions.append(sun_vec)
+    # collect_directions.append(sun_vec)
+# for each_line in line_list_data:
+#     collect_origins.append([each_line[0],each_line[1],each_line[2]*2.4+502])
+#     collect_directions.append(sun_vec)
 
-ray_origins = np.array(collect_origins)
-ray_directions = np.array(collect_directions)
+ray_origins = np.array(line_list_data[1000:3000])
+ray_directions = np.array([sun_vec]*2000)
 from embreex import rtcore_scene
 # run the mesh- ray query
 locations, index_ray, index_tri  = trimesh.ray.ray_pyembree.RayMeshIntersector(mesh).intersects_location(
@@ -60,11 +70,9 @@ ray_visualize = trimesh.load_path(np.hstack((ray_origins,
                                              ray_origins + ray_directions*500.0)).reshape(-1, 2, 3))
 face_normals = mesh.face_normals
 
-# 根据 index_tri 获取交点所在平面的法线
 intersection_normals = face_normals[index_tri]
-points = trimesh.points.PointCloud(locations)
-normals_visualize = trimesh.load_path(np.hstack((locations, locations + intersection_normals*500.0)).reshape(-1, 2, 3))
 
+print(intersection_normals)
 print(len(collect_origins))
 hit_rays = set(index_ray)
 all_rays = set(range(len(ray_origins)))
@@ -84,7 +92,7 @@ total_time = end_time - start_time
 # 输出时间
 print("总计算时间：{:.2f} 秒".format(total_time))
 # create a visualization scene with rays, hits, and mesh
-scene = trimesh.Scene([ray_visualize,normals_visualize, mesh])
+scene = trimesh.Scene([ray_visualize, mesh])
 scene.show()
 
 

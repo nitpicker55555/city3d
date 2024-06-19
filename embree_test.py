@@ -59,7 +59,7 @@ locations, index_ray, index_tri  = trimesh.ray.ray_pyembree.RayMeshIntersector(m
 ray_visualize = trimesh.load_path(np.hstack((ray_origins,
                                              ray_origins + ray_directions*500.0)).reshape(-1, 2, 3))
 face_normals = mesh.face_normals
-
+print(locations.tolist())
 # 根据 index_tri 获取交点所在平面的法线
 intersection_normals = face_normals[index_tri]
 points = trimesh.points.PointCloud(locations)

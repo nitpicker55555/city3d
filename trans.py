@@ -1,33 +1,33 @@
-import trimesh
 import numpy as np
-from pyproj import Transformer
+import trimesh
+from multiprocessing import Pool
 
-# 输入和输出文件路径
-input_file = r"q.obj"
-output_file = "q2.obj"
+def process_rays(chunk):
+    return trimesh.load_path(chunk.reshape(-1, 2, 3))
 
-# 创建坐标变换对象
-transformer = Transformer.from_crs("epsg:25832", "epsg:4326", always_xy=True)
+def main():
+    # 示例光线的起点和方向
+    ray_origins = np.array([[0, 0, 0], [1, 1, 1], [2, 2, 2], [3, 3, 3]])
+    ray_directions = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0]])
 
-# 读取OBJ文件
-mesh = trimesh.load_mesh(input_file)
+    # 计算光线的终点并重塑数组
+    ray_endpoints = ray_origins + ray_directions * 200.0
+    rays = np.hstack((ray_origins, ray_endpoints)).reshape(-1, 2, 3)
 
-# 假设顶点坐标存储在mesh.vertices中
-vertices = mesh.vertices
+    # 将数据分块
+    chunks = np.array_split(rays, 4)  # 分成4块，实际根据CPU核数调整
 
-# 转换顶点坐标
-transformed_vertices = []
-for vertex in vertices:
-    x, y, z = vertex
-    lon, lat = transformer.transform(x, y)
-    transformed_vertices.append([lon, lat, z])
+    # 使用多进程池并行处理
+    with Pool(processes=4) as pool:
+        results = pool.map(process_rays, chunks)
 
-transformed_vertices = np.array(transformed_vertices)
+    # 合并结果
+    ray_visualize = trimesh.Scene()
+    for result in results:
+        ray_visualize.add_geometry(result)
 
-# 创建新的网格对象
-transformed_mesh = trimesh.Trimesh(vertices=transformed_vertices, faces=mesh.faces)
+    # 可视化
+    ray_visualize.show()
 
-# 保存转换后的OBJ文件
-transformed_mesh.export(output_file)
-
-print(f"Transformation complete. Saved to {output_file}")
+if __name__ == '__main__':
+    main()
