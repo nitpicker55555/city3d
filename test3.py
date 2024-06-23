@@ -1,3 +1,16 @@
-for hour in range(24):  # 循环从0到23小时
-    for minute in range(0, 60, 15):  # 每小时的分钟数从0开始，以15为步长
-        print(f'{hour:02}:{minute:02}')
+import json
+from datetime import datetime, timedelta
+import trimesh
+import concurrent.futures
+import numpy as np
+from scipy.spatial import cKDTree
+import pandas as pd
+from pyproj import Transformer
+# from read_height import get_height_by_lon_lat
+from pyproj import CRS, Transformer
+
+from tqdm import tqdm
+from pyproj import Proj, transform
+from get_sun_direction import calculate_sunray_direction_vector
+df = pd.read_csv(r"C:\Users\Morning\Downloads\munich_trans_facade_samples\munich_trans_facade_samples.csv")
+print(len(df))

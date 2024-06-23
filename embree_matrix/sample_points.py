@@ -9,8 +9,8 @@ from pyproj import Proj, transform
 
 
 # 示例 EPSG:25832 点坐标
-epsg25832_points =   np.load(r"C:\Users\Morning\Desktop\closest_point.npy")[:8000]
-obj_mesh = trimesh.load(r"C:\Users\Morning\Desktop\path_to_save_mesh.ply")
+epsg25832_points =   np.load(r"closest_point.npy")
+obj_mesh = trimesh.load(r"path_to_save_mesh.ply")
 obj_vertices = obj_mesh.vertices
 obj_faces = obj_mesh.faces
 tree = cKDTree(obj_vertices)

@@ -79,7 +79,7 @@ def judge_intersection(origin,direction):
     # 检查是否有交点
     return len(locations) > 0
 # 示例 EPSG:25832 点坐标
-epsg25832_points =   np.array(line_list_data[2800:2801])
+epsg25832_points =   np.array(line_list_data[2000:2800])
 obj_mesh = trimesh.load(r'q.obj')
 face_normals = obj_mesh.face_normals
 obj_vertices = obj_mesh.vertices

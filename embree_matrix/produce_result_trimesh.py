@@ -1,33 +1,19 @@
 import json
-from datetime import datetime, timedelta
+
 import trimesh
-import concurrent.futures
 import numpy as np
 from scipy.spatial import cKDTree
 import pandas as pd
 from pyproj import Transformer
-from read_height import get_height_by_lon_lat
-from pyproj import CRS, Transformer
-
 from tqdm import tqdm
 from pyproj import Proj, transform
 from get_sun_direction import calculate_sunray_direction_vector
 df = pd.read_csv(r"munich_trans_facade_samples.csv")
 df['Floor'] = df['Floor'] * 2.4
+from read_height import get_height_by_lon_lat
 # 用列的均值替换NaN值
 from trimesh.visual.color import ColorVisuals
 scene = trimesh.Scene()
-def convert_epsg25832_to_epsg4326(lon, lat):
-    # 创建坐标参考系统
-    crs_src = CRS("EPSG:25832")
-    crs_dst = CRS("EPSG:4326")
-
-    # 创建转换器
-    transformer = Transformer.from_crs(crs_src, crs_dst, always_xy=True)
-
-    # 进行坐标转换
-    lon_converted, lat_converted = transformer.transform(lon, lat)
-    return lon_converted, lat_converted
 
 def visualize_ray_with_gradient(scene,start_point, direction, length, intensity):
     """
@@ -69,8 +55,9 @@ def visualize_ray_with_gradient(scene,start_point, direction, length, intensity)
 
 selected_columns = df[['join_xcoor', 'join_ycoor', 'Floor']]
 line_list_data=selected_columns.values.tolist()
+# 定义 EPSG:25832 坐标系
 
-
+# 转换函数
 def transform_coordinates(points, src_proj, dst_proj):
     transformed_points = np.array([transform(src_proj, dst_proj, x, y) for x, y in points])
     return transformed_points
@@ -93,10 +80,14 @@ def judge_intersection(origin,direction):
     # 检查是否有交点
     return len(locations) > 0
 # 示例 EPSG:25832 点坐标
-epsg25832_points =   np.array(line_list_data[2800:2801])
-obj_mesh = trimesh.load(r'q.obj')
+epsg25832_points =   np.array(line_list_data)
+print('load finish')
+obj_mesh = trimesh.load(r"C:\Users\TUM_LfK\Documents\Python Scripts\combined_mesh.obj")
+print('load finish')
 
 face_normals = obj_mesh.face_normals
+print('load finish')
+
 # obj_vertices = obj_mesh.vertices
 # obj_faces = obj_mesh.faces
 # tree = cKDTree(obj_vertices)
@@ -105,73 +96,39 @@ face_normals = obj_mesh.face_normals
 # colors = np.array([[255, 0, 0, 255] for _ in range(len(epsg25832_points))])  # RGBA 格式
 
 # projected_points = np.zeros_like(epsg25832_points)
-sun_intensity= {}
+# sun_intensity= {}
 # 遍历所有点，计算每个点的最近表面点
 
 date_list = ['2024-06-20','2024-12-21']
 # time_str = '12:50'
-time_list={'2024-06-20':["05:15","21:45"],'2024-12-21':["08:30","16:00"]}
-ray_list=[]
-
-
-def process_point(index_point):
-    i, point = index_point
-    point[2] += get_height_by_lon_lat(convert_epsg25832_to_epsg4326(point[0], point[1]))
-
-    closest_point, distance, triangle_id = obj_mesh.nearest.on_surface([point])
-    intersection_normals = face_normals[triangle_id]
-    locations, index_ray, index_tri = obj_mesh.ray.intersects_location(
-        ray_origins=[closest_point[0]],
-        ray_directions=[sun_vec]
-    )
-
-    if len(locations)>0:
-        light_intensity = 0
-    else:
-        light_intensity = cosin_cal(intersection_normals[0], sun_vec)
-        if light_intensity < 0:
-            light_intensity = 0
-
-    # 返回处理好的数据，以便之后统一写入文件
-    return {'index': i, 'time': time_str, 'date': date_str, 'light_intensity': light_intensity}
-
-
+# ray_list=[]
 for date_str in date_list:
-
-
-    # 起始时间
-    start_time = datetime.strptime(time_list[date_str][0], "%H:%M")
-    # 结束时间
-    end_time = datetime.strptime(time_list[date_str][1], "%H:%M")
-    # 时间增量
-    time_step = timedelta(minutes=30)
-
-    # 循环从 start_time 到 end_time，每次增加 time_step
-    current_time = start_time
-    while current_time <= end_time:
-
-                time_str=current_time
+        for hour in range(24):  # 循环从0到23小时
+            for minute in range(0, 60, 15):  # 每小时的分钟数从0开始，以15为步长
+                time_str=f'{hour:02}:{minute:02}'
                 sun_vec = calculate_sunray_direction_vector(date_str, time_str)
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    # 使用tqdm显示进度条
-                    results = list(
-                        tqdm(executor.map(process_point, enumerate(epsg25832_points)), total=len(epsg25832_points)))
-
-                # 将结果写入文件
-                with open('sun_intensity.jsonl', 'a') as file:
-                    for result in results:
-                        file.write(json.dumps(result) + '\n')
-                current_time += time_step
-
+                for i, point in tqdm( enumerate(epsg25832_points)):
+                    closest_point, distance, triangle_id = obj_mesh.nearest.on_surface([point])
+                    # projected_points= closest_point[0]  # 获取返回的最近点坐标
+                    intersection_normals = face_normals[triangle_id]
+                    intersects=judge_intersection(closest_point[0],sun_vec)
+                    if intersects:
+                        light_intensity=0
+                    else:
+                        light_intensity=cosin_cal(intersection_normals[0], sun_vec)
+                        if light_intensity<0:
+                            light_intensity=0
+                    with open('sun_intensity.jsonl','a')as file:
+                            file.write(json.dumps({'index':i,'time':time_str,'date':date_str,'light_intensity':light_intensity}))
 
 # point_cloud = trimesh.points.PointCloud(projected_points, colors=colors)
-#
-#
-# # 创建场景
-# # scene = trimesh.Scene()
-#
-#
+
+
+# 创建场景
+# scene = trimesh.Scene()
+
+
 # scene.add_geometry(point_cloud)
 # scene.add_geometry(obj_mesh)
-# # 显示场景
+# 显示场景
 # scene.show()
